@@ -49,6 +49,7 @@ class Widget {
     }
     createElement() { // set the html element corresponding to this component
         this.err("you must subclass createElement");
+        // the main html element dom object shall be in the member this.element
     }
     createState() {
         this.err("you must subclass createState");
@@ -59,6 +60,71 @@ class Widget {
     }
     createSignals() {
         this.err("you must subclass createSignals");
+    }
+    setVisible(visible) { // set html element visible or not
+        this.log(-1, "setVisible", visible)
+        if (!(typeof visible === 'boolean')) {
+            this.err("need boolean value")
+        }
+        if (this.element) {
+            if (visible) {
+                if (this.isVisible()) { // already visible
+                    // this.log(-2, "already visible");
+                    return
+                }
+                // recoved saved visibility style
+                // this.log(-2, "style.display: recovering", this.style_display_saved);
+                this.element.style.display = this.style_display_saved
+            }
+            else { // need to hide
+                if (!this.isVisible()) { // already hidden
+                    // this.log(-2, "already hidden");
+                    return
+                }
+                // this.log(-2, "will save style.display:",this.element.style.display)
+                this.style_display_saved = this.element.style.display // save current visibility style
+                this.element.style.display = "none";
+            }
+        }
+    }
+    isVisible() { // true: element is visible, false: it is hidden
+        if (this.element) {
+            return this.element.style.display != "none";
+        }
+    }
+    hide() {
+        this.setVisible(false);
+    }
+    show() {
+        this.log(-1, "show")
+        this.setVisible(true);
+    }
+    setStyles(obj) {
+        if (this.element) {
+            Object.entries(obj).forEach( // javascript
+            ([key, value]) => {
+                this.element.style[key] = value
+            })
+        }
+    }
+    getStyle(key) {
+        if (this.element) {
+            return this.element.style[key]
+        }
+    }
+    addClasses(...classnames) {
+        if (this.element) {
+            classnames.forEach(classname => { 
+                this.element.classList.add(classname)
+            })
+        }
+    }
+    remClasses(...classnames) {
+        if (this.element) {
+            classnames.forEach(classname => { 
+                this.element.classList.remove(classname)
+            })
+        }
     }
     close() {
         for (const [name, signal] of Object.entries(this.signals)) {

@@ -106,18 +106,11 @@ class Navitem extends Widget {
 
 class Navbar extends Widget {
     
-    constructor(id, title, classlist, bgcolor) {
-        // parameters: id, title (of the navbar), classlist
+    constructor(id, title) {
+        // parameters: id, title (of the navbar)
         super(); // calls createSignals automagically
         this.id = id;
         this.title = title;
-        if (classlist == undefined) {
-            this.classlist="fixed-top navbar-dark bg-dark";
-        }
-        else {
-            this.classlist=classlist;
-        }
-        this.bgcolor=bgcolor;
         this.createElement();
         this.createState();
     }
@@ -148,14 +141,13 @@ class Navbar extends Widget {
             this.err("element must be of type 'nav'")
             return;
         }
-        this.element.className="navbar navbar-expand-lg ".concat(this.classlist)
-        if (this.bgcolor) {
-            this.element.style.backgroundColor=this.bgcolor;
-        }
+        // let's not overwrite user-defined classes..
+        // this.element.className="navbar navbar-expand-lg fixed-top navbar-dark bg-dark"
+        this.addClasses("navbar","navbar-expand-lg","fixed-top")
         // "off-canvas navbar" example:
         // <nav class="navbar navbar-expand-lg fixed-top navbar-dark           bg-dark" aria-label="Main navigation">
         // "fixed navbar" example:
-        // <nav class="navbar navbar-expand-md           navbar-dark fixed-top bg-dark">
+        // <nav class="navbar navbar-expand-md fixed-top navbar-dark           bg-dark">
         //
         this.element.innerHTML=`
         <div class="container-fluid">
