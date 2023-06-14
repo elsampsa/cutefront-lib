@@ -25,12 +25,22 @@ class Navitem extends Widget {
     createElement() {
         this.element = document.createElement("li");
         this.element.className="nav-item";
+        /*
         this.element.innerHTML 
             = `<a class="nav-link active" aria-current="page" href="#">${this.title}</a>`
         this.link = this.element.getElementsByTagName("a").item(0)
         this.link.onclick = (event) => {
             this.signals.clicked.emit()
         }
+        */
+        this.element.innerHTML 
+            = `<span class="nav-link active">${this.title}</span>`
+        this.link = this.element.getElementsByTagName("span").item(0)
+        this.link.style.cursor="pointer"
+        this.link.onclick = (event) => {
+            this.signals.clicked.emit()
+        }
+
         /*
         <li class="nav-item"> // this.element
           <a class="nav-link" href="#">title</a>
@@ -58,6 +68,7 @@ class Navitem extends Widget {
 
     toDropdown() {
         this.element.className="nav-item dropdown";
+        /*
         this.element.innerHTML = `
         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">
             ${this.title}
@@ -69,6 +80,20 @@ class Navitem extends Widget {
         this.link.onclick = (event) => {
             this.signals.clicked.emit()
         }
+        */
+        this.element.innerHTML = `
+        <span class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            ${this.title}
+        </span>
+        <ul class="dropdown-menu">
+        </ul>
+        `
+        this.link = this.element.getElementsByTagName("span").item(0)
+        this.link.style.cursor="pointer"
+        this.link.onclick = (event) => {
+            this.signals.clicked.emit()
+        }
+
         this.list_element = this.element.getElementsByTagName("ul").item(0)
     }
     toDropdownItem() {
@@ -149,6 +174,7 @@ class Navbar extends Widget {
         // "fixed navbar" example:
         // <nav class="navbar navbar-expand-md fixed-top navbar-dark           bg-dark">
         //
+        /*
         this.element.innerHTML=`
         <div class="container-fluid">
             <a class="navbar-brand" href="#">${this.title}</a>
@@ -162,6 +188,24 @@ class Navbar extends Widget {
         </div>   
         `
         this.link = this.element.getElementsByTagName("a").item(0)
+        this.link.onclick = (event) => {
+            this.signals.clicked.emit()
+        }
+        */
+        this.element.innerHTML=`
+        <div class="container-fluid">
+            <span class="navbar-brand">${this.title}</span>
+            <button class="navbar-toggler p-0 border-0" type="button" id="navbarSideCollapse" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse offcanvas-collapse" id="navbarsExampleDefault">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                </ul>
+            </div>
+        </div>   
+        `
+        this.link = this.element.getElementsByTagName("span").item(0)
+        this.link.style.cursor="pointer"
         this.link.onclick = (event) => {
             this.signals.clicked.emit()
         }

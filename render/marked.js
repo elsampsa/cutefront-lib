@@ -18,6 +18,9 @@ class Marked extends Widget {
         // render markdown from an input string
         this.render(input)
     }
+    clear_slot() {
+        this.render("")
+    }
     render_file_slot(fname) {
         // render markdown from a file in a relative path, say:
         // ./text.md or ../text.md or ../someplace_else/text.md, etc.
@@ -28,6 +31,8 @@ class Marked extends Widget {
                 this.signals.file_read_ok.emit();
                 this.render(resp);
             }
+            else {
+            } 
         })
     }
     render_file_origin_slot(fname) {
@@ -73,7 +78,7 @@ class Marked extends Widget {
         try {
             response = await fetch(req, pars)
         } catch (error) {
-            this.err("read: fetch failed with", error)
+            this.err(`read: fetch for '${url}' failed with`, error)
             this.signals.file_read_error.emit(
                 `Error "${String(error)}" when reading ${url}`
             )

@@ -25,7 +25,7 @@ import { Group } from './group.js';
 var tx1 = new Include("tx1");
 var tx2 = new Include("tx2");
 var dummy_widget = new DummyWidget();
-var group = new Group();
+var group = new Group("mygroup");
 group.setItems(tx1, tx2)
 
 group.setLogLevel(-1); // debugging

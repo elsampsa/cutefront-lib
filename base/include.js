@@ -73,7 +73,7 @@ class Include extends Widget {
         try {
             response = await fetch(req, pars)
         } catch (error) {
-            this.err("read: fetch failed with", error)
+            this.err(`read: fetch for '${url}' failed with`, error)
             this.signals.file_read_error.emit(
                 `Error "${String(error)}" when reading ${url}`
             )
