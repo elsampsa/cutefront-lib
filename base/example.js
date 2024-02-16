@@ -1,23 +1,32 @@
-import { Widget, Signal } from './widget.js';
+// choose import scheme:
+import { Widget, Signal } from '../lib/base/widget.js'; // app specific
+// import { Widget, Signal } from './widget.js'; // base widget
 
-class MyWidget extends Widget {
+class MyWidget extends Widget { /*//DOC
+    Explain here what your widget does
+    */
     
     constructor(id) {
-        super(); // calls createSignals automagically
-        this.id = id;
+        super(id); // calls createSignals automagically
         this.createElement();
         this.createState();
     }
-    // UP: signals
     createSignals() { // called automagically by super() in the ctor
-        this.signals.some_signal = new Signal();
+        this.signals.some_signal = new Signal(); /*//DOC 
+        Explain what this signal carries & when it is emitted
+        */
     }
-    // IN: slots
-    some_slot(par) {
+    some_slot(par) { /*//DOC
+        Explain what kind of data this slot expects
+        and when the slot is used
+        */
         // permute state, send signals, do something with the elements
         // call methods that does all those things..
     }
-    another_slot(obj) {
+    another_slot(obj) { /*//DOC
+        Explain what kind of data this slot expects
+        and when the slot is used
+        */
         // for slots that receive objects or arrays,
         // before permuting them, create a mutable copy
         // obj=obj.slice() // for arrays with simple objects
