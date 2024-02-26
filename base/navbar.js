@@ -1,18 +1,30 @@
-import { Widget, Signal } from './widget.js';
+import { Widget, Signal, randomID } from './widget.js';
 
-class Navitem extends Widget {
+class Navitem extends Widget { /*//DOC A menu item that can be placed into Navbar
+    */
     constructor(title) {
-        super(); // calls createSignals automagically
+        super();
         this.title = title;
         this.createElement();
         this.createState();
     }
     // UP: signals
-    createSignals() { // called automagically by super() in the ctor
-        this.signals.clicked = new Signal();
+    createSignals() {
+        this.signals.clicked = new Signal(); /*//DOC Emitted when this item is clicked.  Carries nothing.*/
     }
     // IN: slots
-    // no slots
+    left_slot() { /*//DOC Aligns this item to the left.
+    No parameters.
+    */
+        this.element.classList.add("ml-auto");
+        this.element.classList.remove("mr-auto");
+    }
+    right_slot() { /*//DOC Aligns this item to the right.
+    No parameters.
+    */
+        this.element.classList.add("mr-auto");
+        this.element.classList.remove("ml-auto");
+    }
     createState() {
         if (this.element == null) {
             return
@@ -62,7 +74,6 @@ class Navitem extends Widget {
     getElement() { // parent uses this to attach it to the html tree
         return this.element;
     }
-
     // if a dropdown list element --> encapsulate with <li>
     // if has dropdown list element --> etc.
 
@@ -100,7 +111,10 @@ class Navitem extends Widget {
         this.link.className="dropdown-item"
     }
 
-    setItems(...navitems) {
+    setItems(...navitems) { /*//DOC
+        Call immediately after constructor to set sub menu items.  
+        Give each sub Navitem object, separated by a comma.
+        */
         // remove earlier Navitem(s)
         for (const navitem of this.navitems) {
             navitem.close();
@@ -129,22 +143,21 @@ class Navitem extends Widget {
 
 } // Navitem
 
-class Navbar extends Widget {
-    
+class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can place Navitems (menu items).
+    Ctor argument: id of the <nav> element and a title for the navbar
+    Requires ``<link href="./lib/base/navbar-fixed.css" rel="stylesheet">`` in the main html file
+    */
     constructor(id, title) {
-        // parameters: id, title (of the navbar)
-        super(); // calls createSignals automagically
-        this.id = id;
+        super(id);
         this.title = title;
         this.createElement();
         this.createState();
     }
     // UP: signals
-    createSignals() { // called automagically by super() in the ctor
-        this.signals.clicked = new Signal();
+    createSignals() {
+        this.signals.clicked = new Signal(); /*//DOC Emitted when this Navbar is clicked.  Carries nothing.*/
     }
-    // IN: slots
-    // no slots
+    // IN: slots (No slots)
     createState() {
         if (this.element == null) {
             return
@@ -192,15 +205,33 @@ class Navbar extends Widget {
             this.signals.clicked.emit()
         }
         */
+        let navbar_side_collapse=randomID()
+        let navbar_contents=randomID()
         this.element.innerHTML=`
         <div class="container-fluid">
             <span class="navbar-brand">${this.title}</span>
-            <button class="navbar-toggler p-0 border-0" type="button" id="navbarSideCollapse" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" id="${navbar_side_collapse}" 
+            data-bs-target="#${navbar_contents}" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="navbar-collapse offcanvas-collapse" id="navbarsExampleDefault">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <div class="collapse navbar-collapse" id="${navbar_contents}">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0"> 
+                    <!-- navbar items inserted here -->
                 </ul>
+                <div class="me-5">
+                    <div class="row justify-content-evenly">
+                        <div class="col-2">
+                            <i class="fab fa-github text-primary h1"></i>
+                        </div>
+                        <div class="col-2">
+                            <i class="fab fa-facebook text-primary h1"></i>
+                        </div>
+                        <div class="col-2">
+                            <i class="fab fa-stack-overflow text-primary h1"></i>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>   
         `
@@ -211,7 +242,10 @@ class Navbar extends Widget {
         }
         this.list_element = this.element.getElementsByTagName("ul").item(0)
     }
-    setItems(...navitems) {
+    setItems(...navitems) { /*//DOC
+        Call immediately after constructor to set NavItem menu items.
+        Give each Navitem object, separated by a comma.
+        */
         // remove earlier Navitem(s)
         for (const navitem of this.navitems) {
             navitem.close();
