@@ -1,9 +1,15 @@
 import { HTTPDataSourceWidget } from './httpdatasourcewidget.js';
 
-class ExampleHTTPDataSourceWidget extends HTTPDataSourceWidget {
-    
-    
-    declareDatamodels() {
+class ExampleHTTPDataSourceWidget extends HTTPDataSourceWidget { /*//DOC
+    Implementation of an actual HTTP datasource by
+    subclassing HTTPDataSourceWidget
+    */
+    declareDatamodels() { /*//DOC
+        defines:
+        this.datamodel_create
+        this.datamodel_read
+        this.datamodel_update
+        */
         this.datamodel_create = { // C
             name: {
                 label:  "First Name",

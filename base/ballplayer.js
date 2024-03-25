@@ -1,22 +1,20 @@
-import { Widget, Signal } from './widget.js';
+import { Widget, Signal } from './widget.js'; // path for base widget inheritance
 
-// this is for the tutorial & for demo purposes only,
-// so as an exception to the rule, we have two widgets
-// in the same file
-
-class BillBoard extends Widget {
-    // book-keeping of ball throws
+class BillBoard extends Widget { /*//DOC
+    A div element that shows a text indicating how many times a ball has been thrown.
+    This widget is part of the CuteFront documentation demo
+    */
     constructor(id) {
-        super();
-        this.id = id;
+        super(id);
         this.createElement();
         this.createState();
     }
-    // UP: signals
     createSignals() { // no outgoing signals
     }
-    // IN: slots
-    ball_throw_slot() { // connect all ball-throwing signals in here
+    ball_throw_slot() { /*//DOC
+        Sending signal to this slot, increments the number of how many times
+        a ball has been thrown
+        */
         this.log(-1, "ball_throw_slot")
         this.counter += 1
         this.updateMessage()
@@ -26,8 +24,7 @@ class BillBoard extends Widget {
             this.err("no html element")
             return
         }
-        // the only state variable:
-        this.counter = 0 // how many times ball has been thrown
+        this.counter = 0 // the one-and-only state variable: how many times ball has been thrown
         this.updateMessage()
     }
     createElement() {
@@ -49,21 +46,22 @@ class BillBoard extends Widget {
     }
 }
 
-class BallPlayer extends Widget {
-    // A widget you can throw ball with
-    // to another widget
+class BallPlayer extends Widget { /*//DOC
+    An widget that has a button to throw the ball and a text indicating if this widget has the ball 
+    or not
+    */
     constructor(id) {
         super();
         this.id = id;
         this.createElement();
         this.createState();
     }
-    // UP: signals
     createSignals() {
-        this.signals.throw_ball = new Signal(); // sends the ball to another widget
+        this.signals.throw_ball = new Signal(); /*//DOC sends the ball to another widget */
     }
-    // IN: slots
-    catch_ball_slot() { // receive a ball
+    catch_ball_slot() { /*//DOC
+        Sending a signal to this slot, gives the ball to this widget
+        */
         this.log(-1, "catch_ball_slot")
         this.has_ball = true
         this.setBall()
@@ -74,8 +72,7 @@ class BallPlayer extends Widget {
             return
         }
         this.has_ball = false // the only state variable
-        this.setBall()
-        // initialize to not having a ball
+        this.setBall() // initialize to not having a ball
     }
     createElement() {
         this.element = document.getElementById(this.id)

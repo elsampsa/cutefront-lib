@@ -1,3 +1,5 @@
+// this is a template file you can use as a basis to create your own widget
+//
 // choose import scheme:
 import { Widget, Signal } from '../lib/base/widget.js'; // app specific
 // import { Widget, Signal } from './widget.js'; // base widget
@@ -5,7 +7,6 @@ import { Widget, Signal } from '../lib/base/widget.js'; // app specific
 class MyWidget extends Widget { /*//DOC
     Explain here what your widget does
     */
-    
     constructor(id) {
         super(id); // calls createSignals automagically
         this.createElement();

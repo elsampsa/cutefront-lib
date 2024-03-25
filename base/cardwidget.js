@@ -1,24 +1,44 @@
-import { Widget, Signal } from './widget.js';
+import { Widget, Signal } from './widget.js'; // paths for base widget inheritance
 
-class CardWidget extends Widget {
+class CardWidget extends Widget { /*//DOC
+    Shows data.  The data column scheme adapt to a desired datamodel.
+
+    Each column/piece of data belonging to a record is displayed in a separate row, i.e. like this:
     
+    Name            John
+    Surname         Doe
+    */
     constructor(id) {
-        super(); // calls createSignals automagically
-        this.id=id;
+        super(id);
         this.createElement();
         this.createState();
     }
-    // UP: signals
-    createSignals() { // no signals here!
-        // feel free to add a button that sends a signal outside
-        // this widget, etc.
+    createSignals() {
     }
-    // IN: slots
-    datamodel_slot(datamodel) {
+    datamodel_slot(datamodel) { /*//DOC
+        Initialize / adapt this widget to a certain data column scheme.
+        Argument datamodel is a json object where the key is a unique name identifying
+        a column (say "name", "surname", etc.) and the value is a json object with the following scheme:
+
+        {
+            label:  "label describing the column"
+            help :  "some help/information about the column",
+            check:  this.checkStr.bind(this) // i.e. a function checking the value of the data
+        }
+
+        The check function shall return true/false, null/string-explaning-the-error, i.e. this json object:
+    
+        {
+            value: boolean true or false 
+            error: null or "string explaining the error"
+        }
+        */
         this.log(-1, "datamodel_slot", datamodel)
         this.datamodel=datamodel;
     }
-    current_datum_slot(datum) {
+    current_datum_slot(datum) { /*//DOC
+        Sets the current data in the widget
+        */
         this.log(-1, "current_datum_slot", datum)
         this.current_datum=datum;
         if (this.datamodel == null) {
@@ -30,16 +50,6 @@ class CardWidget extends Widget {
             this.element.innerHTML = ``;
             return;
         }
-        /* // from bootstrap examples:
-        <div class="card">
-        <h5 class="card-header">Featured</h5>
-        <div class="card-body">
-            <h5 class="card-title">Special title treatment</h5>
-            <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-            <a href="#" class="btn btn-primary">Go somewhere</a>
-        </div>
-        </div>
-        */
         this.element.innerHTML=`
         <div class="card">
             <h5 class="card-header">Details</h5>
@@ -51,14 +61,14 @@ class CardWidget extends Widget {
         `
         var body_element = this.element.getElementsByClassName("card-body")[0]
         var line = ``
-        // var line = `<h5 class="card-title">Details</h5>`;
-        for (const [key, value] of Object.entries(datum)) { // datum key, value
-            // fields not described by the datamodel (uuid for example)
-            // are sliently omitted
-            // you can also subclass this whole method & "hardcode" the field labels
-            // and used fields
+        for (const [key, value] of Object.entries(datum)) { /* datum key, value
+            fields not described by the datamodel (uuid for example)
+            are silently omitted
+            you can also subclass this whole method & "hardcode" the field labels
+            and used fields
+            */
             if (this.datamodel.hasOwnProperty(key)) {
-                let datamodel = this.datamodel[key] // see datasource for definition
+                let datamodel = this.datamodel[key]
                 const label = datamodel["label"]
                 this.log(-2, `using ${label}: ${value}`);
                 line = line.concat(`
@@ -76,17 +86,7 @@ class CardWidget extends Widget {
         }
     }
     createState() {
-        this.datamodel = null;
-        /* // datamodel has metadata for all data fields:
-        {
-            key  :  same key as in datum
-            {
-                label:  a label for visualization of data with this key
-                help :  a longer description of the field
-                check:  a function that checks if the data field is ok
-            }
-        }
-        */
+        this.datamodel = null; // see datamodel_slot function for precise definition
         this.current_datum = null;
     }
     createElement() {

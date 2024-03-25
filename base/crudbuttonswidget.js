@@ -1,8 +1,7 @@
 import { Widget, Signal } from './widget.js';
 
-class CrudButtonsWidget extends Widget {
-    /*
-    A group of buttons:
+class CrudButtonsWidget extends Widget { /*//DOC
+    This widget features a group of buttons:
     
     New
     Edit
@@ -14,22 +13,22 @@ class CrudButtonsWidget extends Widget {
     When current_datum_slot receives null, Edit and Delete
     buttons are deacticated.
 
-    Sends outgoing signals according to button clicked
+    Sends outgoing signals according to the clicked button
     */
     constructor(id) {
-        super(); // calls createSignals automagically
-        this.id=id;
+        super(id);
         this.createElement();
         this.createState();
     }
-    // UP: signals
-    createSignals() { // called automagically by super() in the ctor
-        this.signals.create = new Signal(); // C // carries nothing
-        this.signals.update = new Signal(); // U // carries nothing
-        this.signals.delete = new Signal(); // D // carries uuid of the datum
+    createSignals() {
+        this.signals.create = new Signal(); /*//DOC Sent when "New" is clicked: requests a C (create) operation.  Carries nothing */
+        this.signals.update = new Signal(); /*//DOC Sent when "Edit" is clicked: requests a U (update) operation. Carries nothing */
+        this.signals.delete = new Signal(); /*//DOC Sent when "New" is clicked: requests a D (delete).  Carries uuid of the datum */
     }
-    // IN: slots
-    current_datum_slot(datum) {
+    current_datum_slot(datum) { /*//DOC
+        Receives a generic datum json object.  The datum should have key "uuid".
+        The value of the key uuid is cached and used bu the "delete" signal.
+        */
         if (datum == null) { // no datum to del / edit
             this.del_button.disabled = true;
             this.edit_button.disabled = true;

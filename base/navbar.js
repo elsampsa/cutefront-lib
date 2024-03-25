@@ -1,18 +1,18 @@
 import { Widget, Signal, randomID } from './widget.js';
 
 class Navitem extends Widget { /*//DOC A menu item that can be placed into Navbar
+    Arguments: title that is shown and a tag that is send with the signal once the navitem is clicked
     */
-    constructor(title) {
+    constructor(title, tag) {
         super();
         this.title = title;
+        this.tag = tag;
         this.createElement();
         this.createState();
     }
-    // UP: signals
     createSignals() {
-        this.signals.clicked = new Signal(); /*//DOC Emitted when this item is clicked.  Carries nothing.*/
+        this.signals.clicked = new Signal(); /*//DOC Emitted when this item is clicked.  Carries tag defined in ctor. */
     }
-    // IN: slots
     left_slot() { /*//DOC Aligns this item to the left.
     No parameters.
     */
@@ -37,39 +37,13 @@ class Navitem extends Widget { /*//DOC A menu item that can be placed into Navba
     createElement() {
         this.element = document.createElement("li");
         this.element.className="nav-item";
-        /*
-        this.element.innerHTML 
-            = `<a class="nav-link active" aria-current="page" href="#">${this.title}</a>`
-        this.link = this.element.getElementsByTagName("a").item(0)
-        this.link.onclick = (event) => {
-            this.signals.clicked.emit()
-        }
-        */
         this.element.innerHTML 
             = `<span class="nav-link active">${this.title}</span>`
         this.link = this.element.getElementsByTagName("span").item(0)
         this.link.style.cursor="pointer"
         this.link.onclick = (event) => {
-            this.signals.clicked.emit()
+            this.signals.clicked.emit(this.tag)
         }
-
-        /*
-        <li class="nav-item"> // this.element
-          <a class="nav-link" href="#">title</a>
-        </li>
-
-        <li class="nav-item dropdown"> // this.element
-          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Title</a>
-          <ul class="dropdown-menu">
-                SUBITEMS HERE
-                ...
-                <li class="nav-item"> // this.element
-                  <a class="nav-link" href="#">title</a>
-                </li>
-                ...
-          </ul>
-        </li>
-        */
     }
     getElement() { // parent uses this to attach it to the html tree
         return this.element;
@@ -79,19 +53,6 @@ class Navitem extends Widget { /*//DOC A menu item that can be placed into Navba
 
     toDropdown() {
         this.element.className="nav-item dropdown";
-        /*
-        this.element.innerHTML = `
-        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-            ${this.title}
-        </a>
-        <ul class="dropdown-menu">
-        </ul>
-        `
-        this.link = this.element.getElementsByTagName("a").item(0)
-        this.link.onclick = (event) => {
-            this.signals.clicked.emit()
-        }
-        */
         this.element.innerHTML = `
         <span class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
             ${this.title}
@@ -102,7 +63,7 @@ class Navitem extends Widget { /*//DOC A menu item that can be placed into Navba
         this.link = this.element.getElementsByTagName("span").item(0)
         this.link.style.cursor="pointer"
         this.link.onclick = (event) => {
-            this.signals.clicked.emit()
+            this.signals.clicked.emit(this.tag)
         }
 
         this.list_element = this.element.getElementsByTagName("ul").item(0)
@@ -153,11 +114,20 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
         this.createElement();
         this.createState();
     }
-    // UP: signals
     createSignals() {
         this.signals.clicked = new Signal(); /*//DOC Emitted when this Navbar is clicked.  Carries nothing.*/
     }
-    // IN: slots (No slots)
+    reset_scroll_slot() { /*//DOC 
+        Resets the page scroll state, so that the whole page is scrolled to y=0, taking into account navbar's height
+        */
+        var navbarHeight = this.element.offsetHeight;
+        this.log(-1, "navbarHeight>", navbarHeight);
+        // Scroll to the top position, subtracting the navbar height
+        window.scrollTo({
+            top: 0 - navbarHeight,
+            behavior: 'smooth'
+        });
+    }
     createState() {
         if (this.element == null) {
             return
@@ -187,7 +157,7 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
         // "fixed navbar" example:
         // <nav class="navbar navbar-expand-md fixed-top navbar-dark           bg-dark">
         //
-        /*
+        /* // some more html just in case..
         this.element.innerHTML=`
         <div class="container-fluid">
             <a class="navbar-brand" href="#">${this.title}</a>
@@ -207,6 +177,7 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
         */
         let navbar_side_collapse=randomID()
         let navbar_contents=randomID()
+        let left=randomID()
         this.element.innerHTML=`
         <div class="container-fluid">
             <span class="navbar-brand">${this.title}</span>
@@ -219,19 +190,10 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
                     <!-- navbar items inserted here -->
                 </ul>
                 <div class="me-5">
-                    <div class="row justify-content-evenly">
-                        <div class="col-2">
-                            <i class="fab fa-github text-primary h1"></i>
-                        </div>
-                        <div class="col-2">
-                            <i class="fab fa-facebook text-primary h1"></i>
-                        </div>
-                        <div class="col-2">
-                            <i class="fab fa-stack-overflow text-primary h1"></i>
-                        </div>
+                    <div class="row justify-content-evenly" id="${left}">
+                    <!-- stuff that appears left in the navbar inserted here -->
                     </div>
                 </div>
-
             </div>
         </div>   
         `
@@ -241,6 +203,21 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
             this.signals.clicked.emit()
         }
         this.list_element = this.element.getElementsByTagName("ul").item(0)
+        this.left_elements = this.element.querySelector(`#${left}`);
+        /* // add stuff to the left of the navbar like this:
+        let div = document.createElement("div")
+        this.left_elements.appendChild(div)
+        div.className="col-2"
+        div.innerHTML=`<i class="fab fa-github text-primary h1">yes</i>`
+        */
+    }
+    divLeft() { /*//DOC
+        Returns a new div element placed to the left of the navbar
+        */
+        var div = document.createElement("div")
+        this.left_elements.appendChild(div)
+        div.className="col-1"
+        return div
     }
     setItems(...navitems) { /*//DOC
         Call immediately after constructor to set NavItem menu items.
@@ -271,4 +248,90 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
 
 } // Navbar
 
-export { Navbar, Navitem }
+class HomePageNavbar extends Navbar { /*//DOC A horizontal navigation bar where you can place Navitems (menu items) for a homepage.
+    Additional methods for putting links for github, stackoverflow, etc.
+    Ctor argument: id of the <nav> element and a title for the navbar
+    Requires ``<link href="./lib/base/navbar-fixed.css" rel="stylesheet">`` in the main html file
+    */
+    constructor(id, title) {
+        super(id, title)
+    }
+
+    setGithub(link) { /*//DOC Adds a github symbol and link to the left of the navbar.
+        Argument: the hyperlink address
+        */
+        let div=this.divLeft()
+        div.innerHTML=`
+            <a href="${link}" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-github text-primary h1"></i>
+            </a>`
+    }
+    setFacebook(link) { /*//DOC Adds a facebook symbol and link to the left of the navbar.
+        Argument: the hyperlink address
+        */
+        let div=this.divLeft()
+        div.innerHTML=`
+            <a href="${link}" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-facebook text-primary h1"></i>
+            </a>
+            `
+    }
+    setSO(link) { /*//DOC Adds a stackoverflow symbol and link to the left of the navbar.
+        Argument: the hyperlink address
+        */
+        let div=this.divLeft()
+        div.innerHTML=`
+            <a href="${link}" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-stack-overflow text-primary h1"></i>
+            </a>
+            `
+    }
+    setLinkedin(link) { /*//DOC Adds a linkedin symbol and link to the left of the navbar.
+        Argument: the hyperlink address
+        */
+        let div=this.divLeft()
+        div.innerHTML=`
+            <a href="${link}" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-linkedin text-primary h1"></i>
+            </a>
+            `
+    }
+    setYoutube(link) { /*//DOC Adds a linkedin symbol and link to the left of the navbar.
+        Argument: the hyperlink address
+        */
+        let div=this.divLeft()
+        div.innerHTML=`
+            <a href="${link}" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-youtube text-primary h1"></i>
+            </a>
+            `
+    }
+    setDiscord(link) { /*//DOC Adds a linkedin symbol and link to the left of the navbar.
+        Argument: the hyperlink address
+        */
+        let div=this.divLeft()
+        div.innerHTML=`
+            <a href="${link}" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-discord text-primary h1"></i>
+            </a>
+            `
+    }
+    setGooglescholar(link) { /*//DOC Adds a google-scholar symbol and link to the left of the navbar.
+        Argument: the hyperlink address
+        */
+        let div=this.divLeft()
+        // <i class="fa-brands fa-google-scholar text-primary h1"></i> // doesn't work..
+        div.innerHTML=`
+            <a href="${link}" target="_blank" rel="noopener noreferrer">
+            <i class="fa fa-scroll text-primary h1"></i>
+            </a>
+            `
+    }
+
+
+}
+
+
+export { Navbar, HomePageNavbar, Navitem }
+
+

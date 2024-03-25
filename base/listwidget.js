@@ -1,42 +1,46 @@
 import { Widget, Signal } from './widget.js';
 
-class ListItemWidget extends Widget {
-    // NOTE: this is an individual item in the ListWidget
-    // for ListWidget itself, see below
-    constructor(parent, index, datum) {
-        // parent: ListWidget
-        // index: index of this ListItemWidget with its ListWidget
-        // datum: a datum.  should have at least key "uuid"
-        super(parent); // creates this.signals
+class ListItemWidget extends Widget { /*//DOC
+    This widget represents an individual list item for ListWidget (see below)
+    Must be subclassed for actual implementation.
+
+    Ctor parameters:
+    
+    - index: index of this ListItemWidget with its ListWidget
+    - datum: a datum.  should have at least key "uuid"
+    */
+    constructor(index, datum) {
+        super();
         this.index = index;
         this.datum = structuredClone(datum)
         this.createState();
         this.createElement();
     }
-    // UP: signals
     createSignals() {
-        this.signals.clicked = new Signal() // carries index
+        this.signals.clicked = new Signal() /*//DOC Emitted when this list item is clicked.  Carries uuid.*/
     }
-    // IN: slots
-    activate_slot() {
+    activate_slot() { /*//DOC
+        Highlights this list item
+        */
         this.element.classList.add("table-warning"); // highlight
     }
-    deactivate_slot() {
+    deactivate_slot() { /*//DOC
+        Deh-highlights this list item
+        */
         this.element.classList.remove("table-warning"); // dehighlight
     }
-    // state & html elements
     createState() { 
     }
     deleteState() {
     }
-    createElement() { // <tr>
+    createElement() {
         // console.log(">", this.data);
         this.element = document.createElement("tr");
         this.element.innerHTML = this.getItemHTML()
         this.element.onclick = (event) => {
             this.signals.clicked.emit(this.datum.uuid);
         }
-        /* // if you want to highlight when mouse hovers over the element
+        /* // if you'd want to highlight when mouse hovers over the element
         this.element.onmouseover = (event) => {
             this.element.classList.add("table-primary");
         }
@@ -47,14 +51,15 @@ class ListItemWidget extends Widget {
     }
     close() {
     }
-    // other
     getElement() { // parent uses this to attach it to the html tree
         return this.element;
     }
     getDatum() {
         return this.datum;
     }
-    getItemHTML() {
+    getItemHTML() { /*//DOC
+        You need to subclass this to get an actual working implementation
+        */
         throw("ListItemWidget: getItemHTML must be subclassed to adapt to your datamodel")
         /* for example:
         return `
@@ -68,25 +73,29 @@ class ListItemWidget extends Widget {
 } // ListItemWidget
 
 
-class ListWidget extends Widget {
-    
-    listItemClass = ListItemWidget;
+class ListWidget extends Widget { /*//DOC
+    Creates a list of datums.  Each datum is a different row in a table.  A current datum can be chosen by clicking it.
+
+    Uses a child widget class (listItemClass) that hardcodes the expected data column schema.
+
+    TODO: this widget should be updated to use the dynamic data scheme (no hardcoding of data schemas).
+    */
+    listItemClass = ListItemWidget; // define the list item class here as a class variable
 
     constructor(id) {
-        super(); // calls createSignals
-        this.id = id;
+        super(id);
         this.createElement();
         this.createState();
         this.generateList([]);
     }
-    // UP: signals
     createSignals() {
-        // carries active datum
-        // if no active datum, then carries null:
-        this.signals.current_datum = new Signal();
+        this.signals.current_datum = new Signal(); /*//DOC Carries the active/chosen datum.  If nothing chosen, the carries null. */
     }
-    // IN: slots
-    datums_slot(datums) {
+    datums_slot(datums) { /*//DOC
+        Set all the datums in the list.
+
+        The argument is a list of json objects
+        */
         this.log(-2, "datums_slot", datums)
         // clear all previous data & set new one
         this.datums = structuredClone(datums);
@@ -98,8 +107,11 @@ class ListWidget extends Widget {
             this.activate_slot(uuid); // look uuid in new/updated datums & reset it to activated/chosen element
         }
     }
-    activate_slot(uuid) {
-        // uuid == null deactivates all
+    activate_slot(uuid) { /*//DOC
+        Activates a datum in the list, based on it's uuid
+
+        uuid == null deactivates/unchooses all datums in the list
+        */
         this.log(-1, "activate_slot: uuid=", uuid)
         if ( (this.current_datum != null) && (this.current_datum.uuid == uuid) ) {
             this.log(-1, "already chosen")
@@ -134,7 +146,7 @@ class ListWidget extends Widget {
         this.list_items.forEach(item => item.close());
         delete this.list_items;
     }
-    createElement() { // <table>
+    createElement() {
         this.element = document.getElementById(this.id)
         if (this.element == null) {
             this.err("could not find element with id", this.id)
@@ -166,7 +178,7 @@ class ListWidget extends Widget {
         this.list_items = new Array()
         var cc=0;
         datums.forEach(datum => {
-            var item = new this.listItemClass(this, cc, datum);
+            var item = new this.listItemClass(cc, datum);
             item.signals.clicked.connect(
                 this.activate_slot.bind(this)
             );
@@ -177,7 +189,9 @@ class ListWidget extends Widget {
         )
     }
 
-    getHeaderHTML() {
+    getHeaderHTML() { /*//DOC
+        You need to subclass this to get an actual working implementation
+        */
         throw("ListWidget: getHeaderHTML must be subclassed to adapt to your datamodel")
         // for example:
         /*
@@ -195,7 +209,9 @@ class ListWidget extends Widget {
 } // ListWidget
 
 
-class ExampleListItemWidget extends ListItemWidget {
+class ExampleListItemWidget extends ListItemWidget { /*//DOC
+    An actual example subclass / implementation of a list item
+    */
     getItemHTML() {
         return `
         <th scope="row">${this.index}</th>
@@ -206,7 +222,9 @@ class ExampleListItemWidget extends ListItemWidget {
     }
 }
 
-class ExampleListWidget extends ListWidget {
+class ExampleListWidget extends ListWidget { /*//DOC
+    An actual example subclass / implementation of a list item
+    */
     listItemClass = ExampleListItemWidget;
 
     getHeaderHTML() {

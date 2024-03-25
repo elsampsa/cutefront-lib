@@ -1,8 +1,10 @@
 import { Widget, Signal } from './widget.js';
 
-class FormFieldWidget extends Widget {
-    // NOTE: these are the individual input fields of the form
-    // for the actual FormWidget, please see below
+class FormFieldWidget extends Widget { /*//DOC
+    An individual input field for the FormWidget (see below)
+    
+    Should not be used as-is by the API user
+    */
     constructor(ctx) {
         super()
         this.unique_name = ctx.unique_name
@@ -83,32 +85,45 @@ class FormFieldWidget extends Widget {
 }
 
 
-class FormWidget extends Widget {
-    /* Adaptable input form as a popup window
+class FormWidget extends Widget {  /*//DOC 
+    An adaptable input form as a popup window.
+
+    The ctor takes in as an extra argument the title of the popup window
+
+    NOTE: uses FormFieldWidget internally as child widgets
     */
     constructor(id, title="Popup Title") {
-        super(); // calls createSignals automagically
+        super(id);
         this.id = id;
         this.title = title;
         this.unique_name = `${id}-Form`
         this.createElement();
         this.createState();
     }
-    // UP: signals
     createSignals() {
-        // create: carries a new record
-        // with just the data defined by call to datamodel_slot
-        this.signals.create = new Signal(); // C
-        // update: carries updated record
-        // with updated fields from the datamodel
-        // plus hidden fields of the original datum
-        this.signals.update = new Signal(); // U
+        this.signals.create = new Signal(); /*//DOC Carries a json object corresponding to the newly created record */
+        this.signals.update = new Signal(); /*//DOC Carries a json object corresponding to an updated record */
     }
-    // IN: slots
-    datamodel_slot(datamodel) {
-        // the input form fields adapts to a datamodel
-        // you could also subclass this and hardcode the 
-        // desired input fields
+    datamodel_slot(datamodel) { /*//DOC
+        The datamodel to which the input form should adapt to.  
+        
+        Argument datamodel is a json object where the key is a unique name identifying
+        a column (say "name", "surname", etc.) and the value is a json object with the following scheme:
+        
+        {
+            label:  "label describing the column"
+            help :  "some help/information about the column",
+            check:  this.checkStr.bind(this) // i.e. a function checking the value of the data
+        }
+
+        The check function shall return true/false, null/string-explaning-the-error, i.e. this json object:
+    
+        {
+            value: boolean true or false 
+            error: null or "string explaining the error"
+        }
+        
+        */
         this.datamodel = datamodel;
         this.log(-1, "datamodel_slot", datamodel)
         for (const [key, model] of Object.entries(this.datamodel)) {
@@ -123,7 +138,10 @@ class FormWidget extends Widget {
             this.element.appendChild(input_field.getElement())
         }
     }
-    current_datum_slot(datum) {
+    current_datum_slot(datum) { /*//DOC
+        Set's the current datum.  Each keys: same keys as in the datamodel 
+        (as in datamodel_slot). Value: the value of the field.
+        */
         if (this.datamodel == null) {
             this.err("current_datum_slot: please call datamodel_slot first");
             return;
@@ -136,14 +154,16 @@ class FormWidget extends Widget {
             return;
         }
         this.current_datum = structuredClone(datum);
-        // run over input fields, previously created by calling
-        // datamodel_slot and fills input fields values from current_datum
-        // 
-        // current_datum may have "hidden" fields (like uuid) not described
-        // by the datamodel: these are not visible / editable in the form fields
-        // 
-        // you could also subclass a simplified version that hard-codes
-        // the input fields
+        /*
+        run over input fields, previously created by calling
+        datamodel_slot and fills input fields values from current_datum
+         
+        current_datum may have "hidden" fields (like uuid) not described
+        by the datamodel: these are not visible / editable in the form fields
+         
+        you could also subclass a simplified version that hard-codes
+        the input fields
+        */
         for (const [key, input_field] of Object.entries(this.input_fields)) {
             // put into the form all fields defined by the datamodel
             let value = this.current_datum[key]
@@ -155,8 +175,8 @@ class FormWidget extends Widget {
             }
         }
     }
-    create_slot() {
-        // opens the dialog with empty fields
+    create_slot() { /*//DOC Opens the form dialog with empty fields
+        */
         if (this.datamodel == null) {
             this.err("current_datum_slot: please call datamodel_slot first");
             return;
@@ -165,11 +185,11 @@ class FormWidget extends Widget {
         this.clear(); // empty the fields
         this.bootstrap_modal.toggle(); // show form
     }
-    update_slot() {
-        // open dialog in "update" mode
-        // this.current_datum must be != null
-        // form fields have been earlier filled with
-        // call to current_datum_slot
+    update_slot() { /*//DOC Opens dialog in "update" mode
+        this.current_datum must be != null
+        and form fields have been earlier filled with
+        call to current_datum_slot
+        */
         if (this.datamodel == null) {
             this.err("current_datum_slot: please call datamodel_slot first");
             return;
@@ -188,14 +208,17 @@ class FormWidget extends Widget {
         this.input_fields = new Object();
     }
     createElement() {
-        /*
-        Here we use the bootstrap modal API that assumes
+        /* Here we use the bootstrap modal API that assumes
         that the API pops up from a certain button 
         (instead we want it to pop-up from a signal!)
-        it would actually be better to do this without the bootstrap API
+        
+        It would actually be better to do this without the bootstrap API
+        But here we use bootstrap, so be it.
+
         So first, we need to demangle the bootstrap modal API:
         In order for the JS API to work, some html must first
         be inserted into the DOM, like this:
+        
         <div class="modal fade" id="exampleModal" tabindex="-1" 
         aria-labelledby="exampleModalLabel" aria-hidden="true">
         </div>
@@ -237,8 +260,6 @@ class FormWidget extends Widget {
         this.body = matches_body.item(0);
         // let's add a form therein:
         this.element = document.createElement("form");
-        // this.element.classList.add("needs-validation")
-        // this.element.classList.add("was-validated")
         this.body.appendChild(this.element);
         this.save_button.onclick = (event) => {
             this.checkInput()

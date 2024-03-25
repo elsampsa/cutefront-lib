@@ -1,40 +1,48 @@
 import { assertKeys } from './widget.js';
 import { DataSourceWidget } from './datasourcewidget.js';
 
-// TODO: substitute `HTTPDataSourceWidget`
-class HTTPDataSourceWidget extends DataSourceWidget {
+class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
+    Implements a datasource using HTTP verbs.
+    For an actual HTTP datasource, you still need to subclass this to declare
+    the expected datamodels.  See method declareDatamodels
+    and ExampleHTTPDataSourceWidget.
+
+    Ctor takes parameter ctx with the following members;
     
+    - base_address
+    - api_slug
+    - object_name 
+    - tail [optional]
+
+    The intercom with the backend works with the following convention:
+
+    OP      VERB    Address
+
+    C       POST    base_address/api_slug/object_name/tail/create
+    R       GET     base_address/api_slug/object_name/tail/read
+    U       PUT     base_address/api_slug/object_name/tail/update
+    D       DELETE  base_address/api_slug/object_name/tail/delete
+
+    (where tail is optional)
+
+    C expects a json object without uuid
+
+    R returns an object: {"objects" : list-of-objects}, where "objects" is the name of the objects in plural, i.e.
+    if "object_name" is "banana", then R should return {”bananas" : list-of-objects}
+
+    U expects a json object with uuid
+
+    D expects a json objects: {"uuid" : uuid-of-object-to-be-deleted}
+    */
     constructor(ctx) {
-        /*
-        ctx: base_address, api_slug, object_name, tail [optional]
-
-        The intercom with the backend works with the following conventions:
-
-        OP      VERB    Address
-
-        C       POST    base_address/api_slug/object_name/tail/create
-        R       GET     base_address/api_slug/object_name/tail/read
-        U       PUT     base_address/api_slug/object_name/tail/update
-        D       DELETE  base_address/api_slug/object_name/tail/delete
-        
-        (where tail is optional)
-
-        C expects a json object without uuid
-        
-        R returns a json object: {"objects" : list-of-objects}, where "objects" is the name of the objects in plural, i.e.
-        if "object_name" is "banana", then R should return {”bananas" : list-of-objects}
-
-        U expects a json object with uuid
-
-        D expects a json objects: {"uuid" : uuid-of-object-to-be-deleted}
-        */
-        super()
+        this.ctx = ctx
         if (ctx == undefined) {
             throw("HTTPDataSourceWidget missing ctx")
         }
         assertKeys(["base_address", "api_slug", "object_name"], ctx)
-        this.ctx = ctx
-        this.createState() // although called by "super()" we need to call this again.. (see createState)
+        super()
+        // this.createState() // although called by "super()" we need to call this again.. (see createState)
+        // TODO: check that this is OK
     }
 
     createState() {
@@ -55,16 +63,20 @@ class HTTPDataSourceWidget extends DataSourceWidget {
         this.declareDatamodels()
     }
 
-    declareDatamodels() {
-        throw("Please subclass declareDatamodels")
-        /*
+    declareDatamodels() { /*//DOC
+        You need to subclass this to define
         this.datamodel_create
         this.datamodel_read
         this.datamodel_update
         */
+        throw("Please subclass declareDatamodels")
     }
 
-    create_slot(datum) { // C
+    create_slot(datum) { /*//DOC
+        Create a new datum into the datasource.
+        Argument datum is an object with key-value pairs.
+        Emits signal data.
+        */
         let res = this.dataCheck(this.datamodel_create, datum)
         if (res.error != null) {
             this.signals.error.emit(`Create: ${res.error}`)
@@ -76,7 +88,7 @@ class HTTPDataSourceWidget extends DataSourceWidget {
         // is the new data
         // feel free to rewrite :)
 
-        // async into callback-hell:
+        // from async into callback-hell:
         this.create(datum_).then( (ok) =>  
         {
             if (!ok) { return }
@@ -88,7 +100,10 @@ class HTTPDataSourceWidget extends DataSourceWidget {
         })
     }
 
-    read_slot() { // R
+    read_slot() { /*//DOC
+        Tells datasource to re-read the data from the datasource and emit
+        the data signal.
+        */
         this.read().then( (ok) => 
         {
             if (!ok) { return }
@@ -96,7 +111,11 @@ class HTTPDataSourceWidget extends DataSourceWidget {
         })
     }
 
-    update_slot(datum) { // U
+    update_slot(datum) { /*//DOC
+        Update an existing datum in the datasource.
+        Argument datum is an object with key-value pairs.  It must have a key named "uuid".
+        Emits signal error upon errors, signal data if the update was succesfull.
+        */
         this.log(-1, "update_slot", datum)
         if (!datum.hasOwnProperty('uuid')) {
             this.log(0, "update_slot: incoming data missing uuid")
@@ -120,7 +139,10 @@ class HTTPDataSourceWidget extends DataSourceWidget {
         })
     }
 
-    delete_slot(uuid) { // D
+    delete_slot(uuid) { /*//DOC
+        Delete an existing datum from the datasource, corresponding to a uuid.
+        Emit signal error upon errors, signal data if the update was succesfull.
+        */
         this.delete(uuid).then( (ok) =>
         {
             if (!ok) { return }

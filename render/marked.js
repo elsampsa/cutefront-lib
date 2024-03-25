@@ -1,29 +1,42 @@
 import { Widget, Signal } from '../base/widget.js';
 
-class Marked extends Widget {
-    
+class Marked extends Widget { /*//DOC
+    Renders given markdown as html
+    */
     constructor(id) {
-        super(); // calls createSignals automagically
-        this.id = id;
+        super(id);
         this.createElement();
         this.createState();
     }
-    // UP: signals
-    createSignals() { // called automagically by super() in the ctor
-        this.signals.file_read_ok = new Signal(); // carries string: filename
-        this.signals.file_read_error = new Signal(); // carries string: filename
+    createSignals() {
+        this.signals.file_read_ok = new Signal(); /*//DOC carries string: filename */
+        this.signals.file_read_error = new Signal(); /*//DOC carries string: filename */
     }
-    // IN: slots
-    render_string_slot(input) {
-        // render markdown from an input string
+    render_string_slot(input) { /*//DOC
+        render markdown as html from an input string
+        */
         this.render(input)
     }
-    clear_slot() {
+    scroll_to_slot(id) { /*//DOC
+        Scrolls to a certain html element, identified with an id
+        */
+        var el = this.element.querySelector(`#${id}`);
+        if (el == null) {
+            this.err(`scroll_to_slot: could not find ${id}`);
+            return;
+        }
+        this.log(-1, "scrolling to", id);
+        el.scrollIntoView({ behavior: 'smooth', block: 'center'})
+    }
+    clear_slot() { /*//DOC
+        Clear the html contents
+        */
         this.render("")
     }
-    render_file_slot(fname) {
-        // render markdown from a file in a relative path, say:
-        // ./text.md or ../text.md or ../someplace_else/text.md, etc.
+    render_file_slot(fname) { /*//DOC
+        render markdown from a file in a relative path, say: 
+        ./text.md or ../text.md or ../someplace_else/text.md, etc.
+        */
         const url = new URL(fname, window.location);
         this.log(-1, "render_file_slot:", url.href);
         this.read(url.href).then( resp => {
@@ -35,8 +48,9 @@ class Marked extends Widget {
             } 
         })
     }
-    render_file_origin_slot(fname) {
-        // render markdown specifying a path relative to origin
+    render_file_origin_slot(fname) { /*//DOC
+        render markdown specifying a path relative to origin
+        */
         let org = window.location.origin;
         if (org == "null" || !org) { // its a string "null" !
             this.signals.file_read_error.emit("render_file_origin_slot: origin is null");

@@ -1,22 +1,40 @@
 import { Widget, Signal, uuidv4 } from './widget.js';
 
-class DataSourceWidget extends Widget {
+class DataSourceWidget extends Widget { /*//DOC
+    This widget does not create any graphical element.
+    It presents a generic datasource and must be subclassed.
     
+    Data is accepted into the datasource via slots.
+    Datasource emits signals that declare datamodels.  Downstream widgets can then adapt themselves to the desired datamodels.
+    There is typically a separate datamodel for each CRUD operation.
+    Datasource also emits any new or updated data via a signal which can be connected to downstream widgets.
+
+    A datamodel is an object with metadata for all data fields
+    key: the data key
+    value: a dictionary with keys "label", "help" and "check", where:
+    - label: a label to be used with forms
+    - help: a descriptive string about the data element
+    - check: a function that checks this data element
+
+    A datasource class should also define functions for checking data fields, see below.
+    */
     constructor() {
-        super(); // calls createSignals automagically
+        super();
         this.createElement();
         this.createState();
     }
-    // UP: signals
-    createSignals() { // called automagically by super() in the ctor
-        this.signals.data = new Signal(); // carries a list of datums
-        this.signals.datamodel_create = new Signal(); // carries datamodel for C operations
-        this.signals.datamodel_read = new Signal(); // carries datamodel for R operations
-        this.signals.datamodel_update = new Signal(); // carries datamodel for U operations
-        this.signals.error = new Signal(); // carries information about an occurred error
+    createSignals() {
+        this.signals.data = new Signal(); /*//DOC Carries a list of all current datums from the datasource */
+        this.signals.datamodel_create = new Signal(); /*//DOC Carries datamodel for C operations */
+        this.signals.datamodel_read = new Signal(); /*//DOC Carries datamodel for R operations */
+        this.signals.datamodel_update = new Signal(); /*//DOC Carries datamodel for U operations */
+        this.signals.error = new Signal(); /*//DOC Carries information (a string) about an occurred error */
     }
-    // IN: slots
-    create_slot(datum) { // C
+    create_slot(datum) { /*//DOC
+        Create a new datum into the datasource.
+        Argument datum is an object with key-value pairs.
+        Emits signal data.
+        */
         let res = this.dataCheck(this.datamodel_create, datum)
         if (res.error != null) {
             this.signals.error.emit(`Create: ${res.error}`)
@@ -27,11 +45,17 @@ class DataSourceWidget extends Widget {
         this.data.push(datum_)
         this.signals.data.emit(this.data)
     }
-    read_slot() { // R
-        // re-reads data from a source if necessary and emits this.signals.data
+    read_slot() { /*//DOC
+        Tells datasource to re-read the data from the datasource and emit
+        the data signal.
+        */
         this.signals.data.emit(this.data);
     }
-    update_slot(datum) { // U
+    update_slot(datum) { /*//DOC
+        Update an existing datum in the datasource.
+        Argument datum is an object with key-value pairs.  It must have a key named "uuid".
+        Emits signal error upon errors, signal data if the update was succesfull.
+        */
         this.log(-1, "update_slot", datum)
         if (!datum.hasOwnProperty('uuid')) {
             this.log(0, "update_slot: incoming data missing uuid")
@@ -57,7 +81,10 @@ class DataSourceWidget extends Widget {
         }
         this.signals.error.emit(`Update: could not find uuid "${datum_.uuid}"`)
     }
-    delete_slot(uuid) { // D
+    delete_slot(uuid) { /*//DOC
+        Delete an existing datum from the datasource, corresponding to a uuid.
+        Emit signal error upon errors, signal data if the update was succesfull.
+        */
         let i = -1
         let cc = 0
         // find list index with data element that matches uuid
@@ -77,8 +104,9 @@ class DataSourceWidget extends Widget {
         this.data.splice(i, 1)
         this.signals.data.emit(this.data)
     }
-    model_slot() {
-        // emits this.signals.datamodel_create & datamode_update
+    model_slot() { /*//DOC
+        (re)emits signals datamodel_create, datamodel_read and datamodel_update
+        */
         this.signals.datamodel_create.emit(this.datamodel_create)
         this.signals.datamodel_read.emit(this.datamodel_read)
         this.signals.datamodel_update.emit(this.datamodel_update)
@@ -91,7 +119,7 @@ class DataSourceWidget extends Widget {
         - help: a descriptive string about the data element
         - check: a function that checks this data element
         */
-        // datamodel for create operations
+        // You need to subclass this method
         this.datamodel_create = { // C
             name: {
                 label:  "First Name",
@@ -121,7 +149,7 @@ class DataSourceWidget extends Widget {
         this.datamodel_update = this.datamodel_create // U
 
         this.data = []
-        // we could hard-code some initial mock data
+        // In your test/mock datasource class, you can hard-code some initial mock data here, for example:
         /*
         key: data key
         value: data element
@@ -146,23 +174,27 @@ class DataSourceWidget extends Widget {
         ];
     }
     */
-
-    /* check function used by this.datamodel
-    return dictionary with {
-        value: checked/cleaned value
-        error: error str or null
     }
-    */
-    }
-    checkStr(par) {
-        // returns value, error-msg
+    // here some functions for checking input values.
+    // you might want to subclass them in your custom datasource class
+    // the idea: the datasource class defines the check functions, based
+    // on what it accepts
+    checkStr(par) { /*//DOC
+        Check function. Checks that par is a string.
+        Returns (corrected) value, error message
+        If everything's ok, the error message is null
+        */
         const str = String(par)
         if (str.length < 1) {
             return {value: null, error: "Empty"}
         }
         return {value: str, error: null}
     }
-    checkNumber(par) {
+    checkNumber(par) { /*//DOC
+        Check function. Checks that par is a number.
+        Returns (corrected) value, error message
+        If everything's ok, the error message is null
+        */
         const str = String(par)
         if (str.length < 1) {
             return {value: null, error: "Empty"}
@@ -179,11 +211,10 @@ class DataSourceWidget extends Widget {
     checkFloat(par) {
         return this.checkNumber(par)
     }
-    createElement() {
+    createElement() { // this widget doesn't create any html elements
     }
 
-    dataCheck(datamodel, datum) {
-        /*
+    dataCheck(datamodel, datum) { /*//DOC
         Given a datamodel, checks the datum against the datamodel
 
         Returns:
@@ -198,7 +229,7 @@ class DataSourceWidget extends Widget {
         are silently omitted (but kept in the final datum)
 
         */
-        /* we _could_ also use sets
+        /* note: in the follosing, we could also use sets
         datamodel_keys = Set(Object.keys(datamodel))
         datum_keys = Set(Object.keys(datum))
         if (!equalSets(datamodel_keys, datum_keys)) {

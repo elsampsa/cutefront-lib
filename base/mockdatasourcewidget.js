@@ -1,10 +1,9 @@
 import { DataSourceWidget } from './datasourcewidget.js';
 
-// An example how you can subclass DataSourceWidget
-// in order to create a mock data source
-
-class MockDataSourceWidget extends DataSourceWidget {
-    
+class MockDataSourceWidget extends DataSourceWidget { /*//DOC
+    This is an example how you can subclass DataSourceWidget
+    in order to create a mock data source
+    */
     createState() {
         this.datamodel_create = { // C
             name: {

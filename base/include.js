@@ -1,27 +1,25 @@
 import { Widget, Signal } from './widget.js';
 
-class Include extends Widget {
-    // Render html from a file or from a string
-    
+class Include extends Widget { /*//DOC 
+    Render html to the current DOM from a local file or from a string
+    */
     constructor(id) {
-        super(); // calls createSignals automagically
-        this.id = id;
+        super(id);
         this.createElement();
         this.createState();
     }
-    // UP: signals
-    createSignals() { // called automagically by super() in the ctor
-        this.signals.file_read_ok = new Signal(); // carries string: filename
-        this.signals.file_read_error = new Signal(); // carries string: filename
+    createSignals() {
+        this.signals.file_read_ok = new Signal(); /*//DOC Emitted when a local html file has been succesfully read*/
+        this.signals.file_read_error = new Signal(); /*//DOC Emitted when there was an error in reading a local html file.
+        Carries name of the local file.
+        */
     }
-    // IN: slots
-    render_string_slot(input) {
-        // render html from an input string
+    render_string_slot(input) { /*//DOC Renders html from an input string */
         this.render(input)
     }
-    render_file_slot(fname) {
-        // render html from a file in a relative path, say:
-        // ./text.md or ../text.md or ../someplace_else/text.md, etc.
+    render_file_slot(fname) { /*//DOC Renders html from a file in a relative path, say:
+        ./text.html or ../text.html or ../someplace_else/text.html, etc.
+        */
         const url = new URL(fname, window.location);
         this.log(-1, "render_file_slot:", url.href);
         this.read(url.href).then( resp => {
@@ -31,8 +29,8 @@ class Include extends Widget {
             }
         })
     }
-    render_file_origin_slot(fname) {
-        // render html specifying a path relative to origin
+    render_file_origin_slot(fname) { /*//DOC Renders html specifying a path relative to origin
+        */
         let org = window.location.origin;
         if (org == "null" || !org) { // its a string "null" !
             this.signals.file_read_error.emit("render_file_origin_slot: origin is null");
