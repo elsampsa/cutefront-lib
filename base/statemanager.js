@@ -1,10 +1,14 @@
 import { Widget } from './widget.js';
 
-class StateWidget extends Widget {
-    
-    constructor(id) {
-        super(); // calls createSignals automagically
-        this.id = id;
+class StateWidget extends Widget { /*//DOC
+    Implements state management for CuteFront.
+
+    Calls individual widgets' parToState and stateToPar methods
+    and inserts states into the browser's address history.
+    */
+    constructor() {
+        super();
+        // this.id = id; // TODO: check if OK
         this.createElement();
         this.createState();
     }
@@ -17,7 +21,11 @@ class StateWidget extends Widget {
         this.widget_by_name = {}
         this.save_pending = false;
     }
-    register(...widgets) {
+    register(...widgets) { /*//DOC    
+        Register widgets for state management.
+        Argument: each widget, separated by a comma.
+        All widgets registered here, must have a sensible parToState and stateToPar implementations.
+        */
         for (const widget of widgets) {
             if (widget.signals.state_change == null) {
                 this.err("widget", widget.id, "doesn't have state_change signal");

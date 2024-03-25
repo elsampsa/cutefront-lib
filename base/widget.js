@@ -1,7 +1,12 @@
+/* This file has:
+
+- Helper functions
+- The base class implementation "Widget" for all CuteFront widgets
+*/
 
 // first, some generic helper functions
-function assertKeys(keys, obj) {
-    // check obj for keys
+
+function assertKeys(keys, obj) { // check an object for keys
     keys.forEach(key => {
         if (!obj.hasOwnProperty(key)) {
             console.trace()
@@ -10,7 +15,7 @@ function assertKeys(keys, obj) {
     })
 }
 
-function boxify(element) {
+function boxify(element) { // modify an html element so that it has visible boxes all around it
     if (element == undefined) {
         element=document.getElementsByTagName("body").item(0)
     }
@@ -23,8 +28,7 @@ function boxify(element) {
 }
 
 
-function getPageParameters() {
-    // get urlencoded parameters as a dictionary
+function getPageParameters() { // get the URLencoded parameters as a dictionary
     var url = new URL(document.documentURI);
     var obj = new Object()
     for (const [key, value] of url.searchParams) {
@@ -34,8 +38,7 @@ function getPageParameters() {
     return obj
 }
 
-function equalSets(setA, setB) {
-    // check if two sets are equal
+function equalSets(setA, setB) { // check if two sets are equal
     for (const elem of setB) {
       if (!setA.has(elem)) {
         return False
@@ -44,21 +47,14 @@ function equalSets(setA, setB) {
     return True
 }
 
-function uuidv4() {
+function uuidv4() { // generate uuid version 4
     // as per https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
     return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
       (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
     );
   }
 
-function randomID() {
-    // as per https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
-    return `A${uuidv4()}`
-  }
-
-
-function csv2obj(str) {
-  // split a string like this: "orange=1,banana=2,apple=3" into an object {orange:1, banana:2, apple:3}
+function csv2obj(str) { // split a string like this: "orange=1,banana=2,apple=3" into an object {orange:1, banana:2, apple:3}
   var obj = new Object()
   if (str.length < 1) {
     return obj;
@@ -70,15 +66,18 @@ function csv2obj(str) {
   return obj
 }
 
-function obj2csv(obj) {
+function obj2csv(obj) { // inverse of csv2obj
     return Object.entries(obj)
         .map(([key, value]) => `${key}=${value}`)
         .join(",");
 }
 
-/*Base class for Widgets
-*/
-class Widget {
+
+class Widget { /* The Base class implementation for CuteFront Widgets
+
+    Subclass should always call this superclasses ctor.
+    Parameter id is the id of the html element to which this widget attaches to.
+    */
     constructor(id) {
         this.id = id
         this.loglevel = 0; // 0 = normal.  smaller: useless, bigger: usefull
@@ -96,10 +95,10 @@ class Widget {
     }
     deleteElement() { // remove any html element(s) if necessary
     }
-    createSignals() {
+    createSignals() { // This must be subclassed
         this.err("you must subclass createSignals");
     }
-    setVisible(visible) { // set html element visible or not
+    setVisible(visible) { // set the widget's html element visible or not
         this.log(-1, "setVisible", visible)
         if (!(typeof visible === 'boolean')) {
             this.err("need boolean value")
@@ -152,7 +151,7 @@ class Widget {
         this.log(-1, "show")
         this.setVisible(true);
     }
-    setStyles(obj) {
+    setStyles(obj) { // helper: set css style attributes
         if (this.element) {
             Object.entries(obj).forEach( // javascript
             ([key, value]) => {
@@ -165,21 +164,21 @@ class Widget {
             return this.element.style[key]
         }
     }
-    addClasses(...classnames) {
+    addClasses(...classnames) { // helper: add css classess
         if (this.element) {
             classnames.forEach(classname => { 
                 this.element.classList.add(classname)
             })
         }
     }
-    remClasses(...classnames) {
+    remClasses(...classnames) { // helper: remove css classes
         if (this.element) {
             classnames.forEach(classname => { 
                 this.element.classList.remove(classname)
             })
         }
     }
-    close() {
+    close() { // close this widget: remove all signal connections, delete state variables and finally the html element
         for (const [name, signal] of Object.entries(this.signals)) {
             signal.close();
         }
@@ -187,7 +186,7 @@ class Widget {
         this.deleteState();
         this.deleteElement();
     }
-    log(...args) {
+    log(...args) { // logging helper.  Works like console.log
         // console.log("loglevel", this.loglevel, "args", args)
         if (args[0] < this.loglevel) {
             return;
@@ -196,74 +195,14 @@ class Widget {
         args.unshift(this.constructor.name + ":" + this.id + ":");
         console.log(...args);
     }
-    err(...args) {
+    err(...args) { // error logging helper.  Works like console.error
         args.unshift(this.constructor.name + ":");
         console.error(...args);
     }
-    setLogLevel(num) {
+    setLogLevel(num) { // set the log level
         this.loglevel = num;
     }
-    /* state management
-    first time when page is loaded (or refreshed)
-    <script>
-    create widgets
-    initial slots calling.. to get data, etc.
-    loadState() function .. each widget examines it's part from the url
-    after calling that function, widget goes into a state where it is updating
-    the url: 
-    that should be a popstate callback
-    </script>
-    */
-   /*
-    getStatePar() {
-        // call when the page is loaded for the first time / refreshed
-        // Get the current URL parameters
-        const searchParams = new URLSearchParams(window.location.search);
-        this.log(-1,"searchParams",searchParams);
-        // Get the value of a specific parameter
-        return searchParams.get(this.id);
-    }
-    setStatePar(par) {
-        this.log(-1, "setStatePar", par)
-        if (par==null) {
-            this.log(-1, "not setting state par")
-            return
-        }
-        
-    }
-    */
-    /*
-    loadInitialState() {
-        this._track = true
-        let par = this.getStatePar()
-        if (par) {
-            this.log(-1, "initial state par", par)
-            this.parToState(par)
-        }
-        else {
-            this.log(-1, "no initial state parameter")
-            this.stateSave()
-            // TODO: this should be handled differently: 
-            // modifying the current state, instead of inserting a new state
-        }
-        //if (track) {
-        window.addEventListener('popstate', (event) => {
-            this.log(-1, "popstate", event)
-            if (event.state && event.state.ignore) {
-                this.log(-1, "popstate: ignoring")
-                return;
-            }
-            // and cached state has been recovered
-            // (user has clicked browser's fw/back buttons)
-            // get the parameter for this widget from the url
-            // and set widget's state according to that parameter
-            par = this.getStatePar()
-            if (par) {
-                this.parToState(par)
-            }
-        });
-        //}
-    }*/
+    // state mangement methods follow
     stateSave() {
         var par = this.stateToPar()
         this.log(-1,"stateSave", par)
@@ -278,27 +217,24 @@ class Widget {
             // this.err("did not emit state_save", par, this.signals.state_change)
         }
     }
-    parToState(par) {
-        // deserialize par and set the state of the widget
+    parToState(par) { // deserialize par and set the state of the widget
     }
-    validatePar(par) {
-        // check that a serialized state parameter is a legit one
+    validatePar(par) { // check that a serialized state parameter is a legit one
         return true;
     }
-    stateToPar() {
-        // serialize state of the widget and return a par
+    stateToPar() { // serialize state of the widget and return a par
         return null;
     }
 }
 
 class Signal {
     constructor() {
-        this.callbacks=new Array();
+        this.callbacks=new Array(); // all registered callback functions for this particular signal
     }
     connect(method) { // register method that's called when emit is called
         this.callbacks.push(method);
     }
-    disconnect(method) { //  deregister a method
+    disconnect(method) { //  deregister a callback function
         let i = this.callbacks.find(func => func == method);
         if (i>0) {
             this.callbacks.pop(i);
@@ -308,19 +244,19 @@ class Signal {
         }
     }
     emit(par) { // call all registered functions when signal is emitted
-        // this.callbacks.forEach(func => func(obj));
         this.callbacks.forEach(cb => {
            cb(par);
         });
     }
-    close() {
+    close() { // close the signal: remove all callback connections
         delete this.callbacks;
     }
 }
 
 
-class ElementWidget extends Widget {
-    // just register the html element for this widget
+class ElementWidget extends Widget { /*//DOC
+    Dummy widget: just register the html element for this widget
+    */
     constructor(id) {
         super();
         this.id = id
@@ -338,17 +274,18 @@ class ElementWidget extends Widget {
     createState() {};
 }
 
-class DummyWidget extends Widget {
-    // everything that comes to the slot
-    // is just dumped to the console
+class DummyWidget extends Widget { /*//DOC
+    A dummy debugging widget: everything that comes to the slot
+    is just dumped to the console
+    */
     constructor() {
         super();
         this.createElement();
         this.createState();
     }
-
-    // IN: slots
-    slot(par) {
+    slot(par) { /*//DOC
+        Everything coming to this slot is dumped to the debug console
+        */
         this.log(0, "got ", par)
     }
 
@@ -357,22 +294,23 @@ class DummyWidget extends Widget {
     createState() {};
 }
 
-class DumpWidget extends Widget {
-    // data arriving to slot is
-    // stringified & dumped into the DOM
+class DumpWidget extends Widget { /*//DOC
+    data arriving to slot is
+    stringified & dumped into the DOM    
+    */
     constructor(id) {
         super();
         this.id = id;
         this.createElement();
         this.createState();
     }
-
-    // IN: slots
-    slot(par) {
+    slot(par) { /*//DOC
+        Everything coming to this slot is dumped to the debug console but
+        also stringified and dumped to the html element of this widget
+        */
         this.log(0, "got ", par)
         this.element.innerHTML = JSON.stringify(par, null, '\t')
     }
-
     createSignals() {};
     createElement() {
         this.log(0, this.id)
@@ -383,4 +321,4 @@ class DumpWidget extends Widget {
 }
 
 export { Widget, Signal, DummyWidget, DumpWidget, ElementWidget,
-    assertKeys, getPageParameters, equalSets, uuidv4, randomID, boxify, csv2obj, obj2csv };
+    assertKeys, getPageParameters, equalSets, uuidv4, boxify, csv2obj, obj2csv };

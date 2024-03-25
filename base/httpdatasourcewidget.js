@@ -35,14 +35,15 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
     D expects a json objects: {"uuid" : uuid-of-object-to-be-deleted}
     */
     constructor(ctx) {
-        this.ctx = ctx
         if (ctx == undefined) {
             throw("HTTPDataSourceWidget missing ctx")
         }
         assertKeys(["base_address", "api_slug", "object_name"], ctx)
-        super()
-        // this.createState() // although called by "super()" we need to call this again.. (see createState)
-        // TODO: check that this is OK
+        super() // must always be called in js ctor before using "this"
+        this.ctx = ctx
+        this.createState() /* although called by "super()" we need to call this again.. as it calls createState
+        and createState uses this.ctx
+        */
     }
 
     createState() {
