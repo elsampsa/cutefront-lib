@@ -54,6 +54,12 @@ function uuidv4() { // generate uuid version 4
     );
   }
 
+
+function randomID() {
+    // as per https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
+    return `A${uuidv4()}`
+  }
+
 function csv2obj(str) { // split a string like this: "orange=1,banana=2,apple=3" into an object {orange:1, banana:2, apple:3}
   var obj = new Object()
   if (str.length < 1) {
@@ -321,4 +327,4 @@ class DumpWidget extends Widget { /*//DOC
 }
 
 export { Widget, Signal, DummyWidget, DumpWidget, ElementWidget,
-    assertKeys, getPageParameters, equalSets, uuidv4, boxify, csv2obj, obj2csv };
+    assertKeys, getPageParameters, equalSets, uuidv4, boxify, csv2obj, obj2csv, randomID };
