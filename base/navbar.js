@@ -178,6 +178,9 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
         let navbar_side_collapse=randomID()
         let navbar_contents=randomID()
         let left=randomID()
+        // the button would require "d-lg-none" class to hide/show it, depending on the screen size
+        // but that is probably added there automagically by the combo of "container-fluid" & "navbar-toggler" ?
+        // compare to sidebarwidget.js
         this.element.innerHTML=`
         <div class="container-fluid">
             <span class="navbar-brand">${this.title}</span>
@@ -195,7 +198,7 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
                     </div>
                 </div>
             </div>
-        </div>   
+        </div> 
         `
         this.link = this.element.getElementsByTagName("span").item(0)
         this.link.style.cursor="pointer"

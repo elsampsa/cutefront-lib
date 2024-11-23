@@ -1,4 +1,4 @@
-import { Widget, Signal } from './widget.js';
+import { Widget, Signal, randomID } from './widget.js';
 
 class FormFieldWidget extends Widget { /*//DOC
     An individual input field for the FormWidget (see below)
@@ -90,11 +90,14 @@ class FormWidget extends Widget {  /*//DOC
 
     The ctor takes in as an extra argument the title of the popup window
 
-    NOTE: uses FormFieldWidget internally as child widgets
+    Uses FormFieldWidget internally as child widgets
+
+    The "id" argument here does not try to attach to an existing HTML
+    element in the DOM - feel free to use any id you wish (randomID is recommended)
     */
     constructor(id, title="Popup Title") {
         super(id);
-        this.id = id;
+        this.id = id
         this.title = title;
         this.unique_name = `${id}-Form`
         this.createElement();

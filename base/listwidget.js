@@ -147,16 +147,9 @@ class ListWidget extends Widget { /*//DOC
         delete this.list_items;
     }
     createElement() {
-        this.element = document.getElementById(this.id)
-        if (this.element == null) {
-            this.err("could not find element with id", this.id)
-            return
-        }
-        if (this.element.tagName != "TABLE") {
-            this.err("html element tagname must be table, not", this.element.tagName)
-            this.element = null
-            return
-        }
+        console.log(">", this)
+        this.findElement(this.id);
+        this.checkElement("TABLE");
         this.element.innerHTML=`
         <thead>
         </thead>

@@ -6,6 +6,10 @@
 
 // first, some generic helper functions
 
+function isDOMElement(obj) {
+    return obj instanceof Element || obj instanceof HTMLDocument;
+}
+
 function assertKeys(keys, obj) { // check an object for keys
     keys.forEach(key => {
         if (!obj.hasOwnProperty(key)) {
@@ -93,6 +97,77 @@ class Widget { /* The Base class implementation for CuteFront Widgets
     createElement() { // set the html element corresponding to this component
         this.err("you must subclass createElement");
         // the main html element dom object shall be in the member this.element
+    }
+    findElement(par) { /*//DOC
+        checks if par is an HTMLElement, if not, then try to find an element
+        with id = par from the DOM.  Of that fails, print an error.
+        On success, return set this.element to the HTMLElement.
+        */
+        if (par instanceof HTMLElement) {
+            // Parameter is already an HTML element
+            this.element = par;
+            return;
+        }
+        // Try to find element by ID
+        this.element = document.getElementById(par);
+        if (this.element == null) {
+            this.err("could not find element with id", par);
+        }
+    }
+    checkElement(tagname) { /*//DOC
+        Checks if this.element has the correct tagname.
+        If not, logs an error and changes the element's tag to the requested one.
+        Argument tagname should be uppercase (e.g. "TABLE", "DIV", etc.)
+        */
+        if (this.element.tagName !== tagname) {
+            this.err(`html element tagname must be ${tagname}, not ${this.element.tagName}, changing tag`)
+            // Create new element with correct tag
+            const new_element = document.createElement(tagname);
+            // Copy attributes
+            for (const attr of this.element.attributes) {
+                new_element.setAttribute(attr.name, attr.value);
+            }
+            // Replace old element with new one
+            if (this.element.parentNode) {
+                this.element.parentNode.replaceChild(new_element, this.element);
+            }
+            this.element = new_element;
+        }
+    }
+    autoElement() { /*//DOC
+        Handles this.element according to this.id.  If this.id is:
+        - an HTML element, set this.element = this.id
+        - a string, search for an id in the DOM and attach this.element to it
+        - null or undefined, create a new orphan div element and set this.element to it:
+          this widget is then used by parent widgets, like this:
+          ```
+          parent.element.appendChild(child.element)
+          ``` 
+        */
+        if (this.id instanceof HTMLElement) {
+            this.element = this.id;
+            return;
+        }
+        if (typeof this.id === 'string') {
+            this.element = document.getElementById(this.id);
+            if (!this.element) {
+                this.err("could not find element with id", this.id);
+                this.element = null;
+            }
+            else {
+                return;
+            }
+        }
+        if (this.id === undefined || this.id == null) {
+            this.log(-1, "creating orphan element");
+            console.log("creating orphan element"); 
+            this.element = document.createElement("div");
+            return;
+        }
+        this.err("id must be HTMLElement instance, string or null or undefined", this.id);
+    }
+    getElement() { // returns the html element of this widget
+        return this.element
     }
     createState() {
         this.err("you must subclass createState");
@@ -231,6 +306,9 @@ class Widget { /* The Base class implementation for CuteFront Widgets
     stateToPar() { // serialize state of the widget and return a par
         return null;
     }
+    getElement(par) {
+        return this.element.querySelector(`#${par}`); // WARNING: this doesn't work in action, why!?
+    }
 }
 
 class Signal {
@@ -327,4 +405,4 @@ class DumpWidget extends Widget { /*//DOC
 }
 
 export { Widget, Signal, DummyWidget, DumpWidget, ElementWidget,
-    assertKeys, getPageParameters, equalSets, uuidv4, boxify, csv2obj, obj2csv, randomID };
+    assertKeys, getPageParameters, equalSets, uuidv4, boxify, csv2obj, obj2csv, randomID, isDOMElement };

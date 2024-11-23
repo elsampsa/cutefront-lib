@@ -6,9 +6,9 @@ class StateWidget extends Widget { /*//DOC
     Calls individual widgets' parToState and stateToPar methods
     and inserts states into the browser's address history.
     */
-    constructor() {
+    constructor(id = 'state-manager') {
         super();
-        // this.id = id; // TODO: check if OK
+        this.id = id;
         this.createElement();
         this.createState();
     }
