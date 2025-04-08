@@ -18,8 +18,8 @@ class Group extends Widget { /*//DOC
         all visible elements, separated with "_"
         */
         var s="";
-        for (var i = 0; i < this.items.length; i++) {
-            var item = this.items[i]
+        for (var i = 0; i < this.itemList.length; i++) {
+            var item = this.itemList[i]
             if (item.isVisible()) {
                 s=s.concat(`${i}_`)
             }
@@ -36,7 +36,7 @@ class Group extends Widget { /*//DOC
     parToState(s) {
         this.log(-1, "parToState", s)
         // hide all
-        for (const item of this.items) {
+        for (const item of this.itemList) {
             item.setVisible(false);
         }
         // pick up which ones to show
@@ -44,25 +44,25 @@ class Group extends Widget { /*//DOC
         for (const num of nums) {
             let i=parseInt(num)
             if (!(isNaN(i))) {
-                this.items[i].setVisible(true);
+                this.itemList[i].setVisible(true);
             }
         }
     }
     createState() {
-        this.items = [];
+        this.itemList = [];
         this.visible = true;
         this.listen_hash = true;
     }
     createElement() {
     }
     hide_all_slot() { /*//DOC Hide all widgets in this group*/
-        for (const item of this.items) {
+        for (const item of this.itemList) {
             item.setVisible(false);
         }
         this.stateSave()
     }
     show_all_slot() { /*//DOC Show all widgets in this group*/
-        for (const item of this.items) {
+        for (const item of this.itemList) {
             item.setVisible(true);
         }
         this.stateSave()
@@ -70,8 +70,8 @@ class Group extends Widget { /*//DOC
     show_slot(item) { /*//DOC 
         Hide all other widgets, show widget item
         */
-        if (this.items.includes(item)) {
-            for (const item_ of this.items) {
+        if (this.itemList.includes(item)) {
+            for (const item_ of this.itemList) {
                if (item_ == item) {
                     item_.setVisible(true);
                }
@@ -83,16 +83,20 @@ class Group extends Widget { /*//DOC
         }
         this.stateSave()
     }
-    setItems(...items) { /*//DOC
-        Set all the items belonging to this group
+    setItems(itemsObject) { /*//DOC
+        Set all the items belonging to this group.  Example:
+        setItems({ home: home, settings: settings })
         */
-        // console.log(">>", items);
-        this.items = items;
-        for (const item of this.items) {
+        this.items = itemsObject;
+        this.makeList();
+    }
+    makeList() {
+        this.itemList = Object.values(this.items);
+        for (const item of this.itemList) {
             item.setVisible(false);
         }
-        if (this.items.length >= 1) {
-            this.items[0].setVisible(true)
+        if (this.itemList.length >= 1) {
+            this.itemList[0].setVisible(true)
         }
     }
 

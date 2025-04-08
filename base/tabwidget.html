@@ -37,11 +37,11 @@
 
         // Create and set up the Tab widget
         const tabWidget = new TabWidget("myTabs");
-        tabWidget.setItems(
-            [widget1, "name"],
-            [widget2, "toka"],
-            [widget3, "kolkki"]
-        )
+        tabWidget.setItems({
+            widget1: [widget1, "eka"],
+            widget2: [widget2, "toka"],
+            widget3: [widget3, "kolkki"]
+        })
         // Connect to the tabChanged signal
         const dummyWidget = new DummyWidget();
         tabWidget.signals.tabChanged.connect(

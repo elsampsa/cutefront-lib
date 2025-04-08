@@ -56,20 +56,28 @@ const admin = new MockContentWidget("Admin");
 container.setLogLevel(-1); // debugging
 
 // Add widgets to container
-container.setItems(home, items, settings, admin);
+container.setItems({
+    home: home,
+    items: items,
+    settings: settings,
+    admin: admin
+});
+
+console.log(">>", container.items)
 
 // Test buttons
 document.getElementById("show-home").onclick = () => {
-    container.choose_content_slot("0");  // Show first widget
+    container.show_slot(container.items.home);
 };
 document.getElementById("show-items").onclick = () => {
-    container.choose_content_slot("1");  // Show second widget
+    // container.show_slot(container.items.items);
+    container.show_slot(items);
 };
 document.getElementById("show-settings").onclick = () => {
-    container.choose_content_slot("2");  // Show third widget
+    container.show_slot(container.items.settings);
 };
 document.getElementById("show-admin").onclick = () => {
-    container.choose_content_slot("3");  // Show fourth widget
+    container.show_slot(container.items.admin);
 };
 </script>
 </html>

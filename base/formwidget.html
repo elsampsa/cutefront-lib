@@ -41,6 +41,9 @@ function checkNumber(par) {
     return {value: num, error: null}
 }
 
+function checkBoolean(par) {
+    return {value: Boolean(par), error: null}
+}
 
 // mock data
 var datamodel = { // datamodel has metadata of all data fields
@@ -63,6 +66,12 @@ var datamodel = { // datamodel has metadata of all data fields
             label: "Age",
             help : "Age of the person in years",
             check: checkNumber
+        },
+        coolness: {
+            label: "is this person cool?",
+            help : "cool or not",
+            type : "boolean",
+            check: checkBoolean
         }
 };
 
@@ -72,14 +81,16 @@ var data = [
         "name": "John",
         "surname": "Doe",
         "email": "john.doe@gmail.com",
-        "age": 51
+        "age": 51,
+        "coolness": true
     },
     {
         "uuid": "654321",
         "name": "Joanna",
         "surname": "Doe",
         "email": "joanna.doe@gmail.com",
-        "age": 18
+        "age": 18,
+        "coolness": false
     }
 ]
 

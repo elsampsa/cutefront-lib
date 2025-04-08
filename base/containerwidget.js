@@ -30,26 +30,43 @@ class ContainerWidget extends Group {
         // Container stays empty - child widgets will be attached in setItems
     }
 
-    setItems(...widgets) { /*//DOC
+
+    setItems(widget_dict) { /*//DOC
         Set the child widgets for this container.
-        Each widget should be a fully initialized widget instance that
-        creates its own element.
+        Argument is an object where each key is widget name and value is the widget instance
+        Example: {home: homeWidget, items: itemsWidget}
         */
+        // Validate entries
+        Object.entries(widget_dict).forEach(([key, widget]) => {
+            if (!(widget instanceof Widget)) {
+                this.err("Value must be Widget instance");
+                return;
+            }
+        });
+
         // First remove any existing child elements
         while (this.element.firstChild) {
             this.element.removeChild(this.element.firstChild);
         }
+
+        // Store reference to widgets
+        this.items = widget_dict;
+        
+        // Get array of widgets for DOM manipulation
+        const widgets = Object.values(widget_dict);
+        
         // Attach each widget's element as a child to our container
         widgets.forEach(widget => {
-            this.log(-1, ">", widget)
+            this.log(-1, ">", widget);
             if (!widget.element) {
                 this.err("setItems: widget has no element");
                 return;
             }
             this.element.appendChild(widget.element);
         });
+
         // Use Group's functionality to manage visibility
-        super.setItems(...widgets);
+        super.makeList();
     }
 }
 

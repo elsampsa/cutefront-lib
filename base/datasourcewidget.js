@@ -64,7 +64,7 @@ class DataSourceWidget extends Widget { /*//DOC
         }
         let res = this.dataCheck(this.datamodel_update, datum)
         if (res.error != null) {
-            this.error.emit(`Update: ${res.error}`)
+            this.signals.error.emit(`Update: ${res.error}`)
             return
         }
         let datum_ = res.datum
@@ -211,6 +211,36 @@ class DataSourceWidget extends Widget { /*//DOC
     checkFloat(par) {
         return this.checkNumber(par)
     }
+    checkBool(par) { /*//DOC
+        Check function. Checks that par is a boolean or boolean-like value.
+        Accepts boolean, 'true'/'false' strings, and 1/0.
+        Returns (corrected) value, error message
+        If everything's ok, the error message is null
+        */
+        if (typeof par === 'boolean') {
+            return {value: par, error: null}
+        }
+        // Handle string representations of booleans
+        if (par === 'true' || par === 'false') {
+            return {value: par === 'true', error: null}
+        }
+        // Handle numeric 1/0
+        if (par === 1 || par === 0) {
+            return {value: Boolean(par), error: null}
+        }
+        return {value: null, error: "Not a boolean"}
+    }
+    checkBoolStrict(par) { /*//DOC
+        Check function. Checks that par is strictly a boolean.
+        Only accepts true boolean values.
+        Returns (corrected) value, error message
+        If everything's ok, the error message is null
+        */
+        if (typeof par === 'boolean') {
+            return {value: par, error: null}
+        }
+        return {value: null, error: "Not a boolean"}
+    }
     createElement() { // this widget doesn't create any html elements
     }
 
@@ -229,7 +259,7 @@ class DataSourceWidget extends Widget { /*//DOC
         are silently omitted (but kept in the final datum)
 
         */
-        /* note: in the follosing, we could also use sets
+        /* note: in the following, we could also use sets
         datamodel_keys = Set(Object.keys(datamodel))
         datum_keys = Set(Object.keys(datum))
         if (!equalSets(datamodel_keys, datum_keys)) {

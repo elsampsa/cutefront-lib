@@ -84,6 +84,90 @@ class FormFieldWidget extends Widget { /*//DOC
     }
 }
 
+class CheckBoxFormFieldWidget extends FormFieldWidget { /*//DOC
+    An individual checkbox input field for the FormWidget
+    
+    Extends FormFieldWidget to implement a checkbox input instead of a text input
+    Used for boolean values like "active", "enabled", "subscribed", etc.
+    */
+    constructor(ctx) {
+        super(ctx)
+    }
+
+    createElement() { /*//DOC
+        Creates the HTML structure for a checkbox input field
+        Uses Bootstrap's form-check styling for proper checkbox display
+        */
+        this.log(-1, "checkboxformfieldwidget: datamodel:", this.datamodel)
+        let uniquename = this.unique_name + "-" + this.key
+        this.element = document.createElement("div");
+        this.element.classList.add("mb-3", "form-check");
+        
+        var line = `
+        <input type="checkbox" class="form-check-input" id="${uniquename}">
+        <label class="form-check-label" for="${uniquename}">${this.datamodel.label}</label>
+        <div class="valid-feedback">ok!</div>
+        `
+        
+        if (this.datamodel.help != undefined) {
+            line += `
+            <div id="${uniquename}Help" class="form-text">${this.datamodel.help}</div>
+            `
+        }
+        
+        this.element.innerHTML = line
+        
+        // cache the checkbox input and feedback message
+        this.input = this.element.getElementsByTagName("input").item(0)
+        this.valid_msg = this.element.getElementsByClassName("valid-feedback").item(0)
+    }
+
+    set(par) { /*//DOC
+        Sets the checkbox state based on the provided boolean value
+        
+        Arguments:
+        par - Boolean value to set the checkbox state
+        */
+        // Set the checkbox checked property based on the boolean value
+        this.input.checked = Boolean(par)
+    }
+
+    get() { /*//DOC
+        Gets the current checkbox state and passes it through the datamodel check function
+        
+        Returns:
+        Boolean value if valid, null if validation failed
+        */
+        // For checkboxes, we'll pass the checked state to the check function
+        let res = this.datamodel.check(this.input.checked)
+        this.log(-1, "get: check", res)
+        
+        if (res.value == null) {
+            // Something went wrong
+            this.input.classList.remove("is-valid")
+            this.input.classList.add("is-invalid")
+            this.valid_msg.classList.remove("valid-feedback")
+            this.valid_msg.classList.add("invalid-feedback")
+            this.valid_msg.innerHTML = res.error
+            return null
+        } else {
+            this.input.classList.add("is-valid")
+            this.input.classList.remove("is-invalid")
+            this.valid_msg.classList.add("valid-feedback")
+            this.valid_msg.classList.remove("invalid-feedback")
+            this.valid_msg.innerHTML = ''
+            return res.value
+        }
+    }
+
+    clear() { /*//DOC
+        Resets the checkbox to unchecked state and clears any validation styling
+        */
+        this.input.checked = false
+        this.clearWarnings()
+    }
+}
+
 
 class FormWidget extends Widget {  /*//DOC 
     An adaptable input form as a popup window.
@@ -117,6 +201,7 @@ class FormWidget extends Widget {  /*//DOC
             label:  "label describing the column"
             help :  "some help/information about the column",
             check:  this.checkStr.bind(this) // i.e. a function checking the value of the data
+            type : "string"
         }
 
         The check function shall return true/false, null/string-explaning-the-error, i.e. this json object:
@@ -126,17 +211,38 @@ class FormWidget extends Widget {  /*//DOC
             error: null or "string explaining the error"
         }
         
+        The type field indicates what kind of FormFieldWidget should be instantiated.
+        In this base implementation two different kinds of type -> FormFieldWidget mappings are provided:
+
+        no type field defined or type = "string" -> FormFieldWidget
+        type = "boolean" -> CheckBoxFormFieldWidget
+
+        If your custom data source sends signals to datamodel_slot that has some other type fields, then be sure
+        to subclass this method and to create appropriate FormFieldWidget subclasses.
         */
         this.datamodel = datamodel;
+        console.log("datamodel_slot", datamodel)
         this.log(-1, "datamodel_slot", datamodel)
         for (const [key, model] of Object.entries(this.datamodel)) {
-            var input_field = new FormFieldWidget(
-                {
-                    unique_name: this.unique_name, // e.g. "myInputForm"
-                    key: key, // i.e. e.g. "surname"
-                    datamodel: model // metadata description for "surname"
-                }
-            )
+
+            if ((model.type == undefined) || (model.type == "string")) {
+                var input_field = new FormFieldWidget(
+                    {
+                        unique_name: this.unique_name, // e.g. "myInputForm"
+                        key: key, // i.e. e.g. "surname"
+                        datamodel: model // metadata description for "surname"
+                    }
+                )
+            }
+            else if (model.type == "boolean") {
+                var input_field = new CheckBoxFormFieldWidget(
+                    {
+                        unique_name: this.unique_name, // e.g. "myInputForm"
+                        key: key, // i.e. e.g. "surname"
+                        datamodel: model // metadata description for "surname"
+                    }
+                )
+            }
             this.input_fields[key] = input_field
             this.element.appendChild(input_field.getElement())
         }

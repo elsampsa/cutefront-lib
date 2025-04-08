@@ -36,26 +36,46 @@ class TabWidget extends Group {
         this.tabs = [];
         this.activeTabIndex = 0;
     }
-
-    setItems(...item_tuples) {
-        // Validate each tuple has a Widget and string
-        item_tuples.forEach(tuple => {
-            if (!(tuple[0] instanceof Widget)) {
-                this.err("First element of tuple must be Widget instance");
+    
+    setItems(widget_dict) { /*//DOC 
+        Set the tab widgets with their identifiers and display names.
+        
+        Example:
+        tabWidget.setItems({
+            homeWidget: [homeWidget, "Home"],
+            itemsWidget: [itemsWidget, "Items"],
+            settingsWidget: [settingsWidget, "Settings"]
+        });
+ 
+        Access widgets with:
+        this.items.homeWidget
+        */
+        // Validate entries
+        Object.entries(widget_dict).forEach(([key, pair]) => {
+            if (!(pair[0] instanceof Widget)) {
+                this.err("First element of pair must be Widget instance");
                 return;
             }
-            if (typeof tuple[1] !== 'string') {
-                this.err("Second element of tuple must be string");
+            if (typeof pair[1] !== 'string') {
+                this.err("Second element of pair must be string");
                 return;
             }
         });
-     
-        this.tabs = item_tuples.map(tuple => ({
-            widget: tuple[0],
-            name: tuple[1] 
+ 
+        // Store widget references by key
+        this.items = Object.entries(widget_dict).reduce((acc, [key, pair]) => {
+            acc[key] = pair[0];
+            return acc;
+        }, {});
+ 
+        // Create tabs array for rendering
+        this.tabs = Object.entries(widget_dict).map(([key, pair]) => ({
+            widget: pair[0],
+            name: pair[1]
         }));
+ 
         this.renderTabs();
-     }
+    }
 
     renderTabs() {
         this.tabList.innerHTML = '';
