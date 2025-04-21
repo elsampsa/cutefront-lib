@@ -13,6 +13,8 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
     - api_slug
     - object_name 
     - tail [optional]
+    - customHeaders [optional]: Object with custom headers to include in all requests
+    - pluralRule [optional]: Function that converts singular to plural (default: add 's')
 
     The intercom with the backend works with the following convention:
 
@@ -28,7 +30,7 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
     C expects a json object without uuid
 
     R returns an object: {"objects" : list-of-objects}, where "objects" is the name of the objects in plural, i.e.
-    if "object_name" is "banana", then R should return {”bananas" : list-of-objects}
+    if "object_name" is "banana", then R should return {"bananas" : list-of-objects}
 
     U expects a json object with uuid
 
@@ -38,10 +40,10 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         if (ctx == undefined) {
             throw("HTTPDataSourceWidget missing ctx")
         }
-        assertKeys(["base_address", "api_slug", "object_name"], ctx)
-        super() // must always be called in js ctor before using "this"
-        this.ctx = ctx
-        this.createState() /* although called by "super()" we need to call this again.. as it calls createState
+        assertKeys(["base_address", "api_slug", "object_name"], ctx);
+        super(); // must always be called in js ctor before using "this"
+        this.ctx = ctx;
+        this.createState(); /* although called by "super()" we need to call this again.. as it calls createState
         and createState uses this.ctx
         */
     }
@@ -50,18 +52,26 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         if (this.ctx == undefined) {
             // invoked by the superclass (DataSourceWidget) ctor
             // so "this.ctx" not yet ready
-            return
+            return;
         }
+        
+        // Build the base API address
         if (this.ctx.tail != undefined) {
-            this.adr=`${this.ctx.base_address}/${this.ctx.api_slug}/${this.ctx.object_name}/${this.ctx.tail}/`
+            this.adr = `${this.ctx.base_address}/${this.ctx.api_slug}/${this.ctx.object_name}/${this.ctx.tail}/`;
+        } else {
+            this.adr = `${this.ctx.base_address}/${this.ctx.api_slug}/${this.ctx.object_name}/`;
         }
-        else {
-            this.adr=`${this.ctx.base_address}/${this.ctx.api_slug}/${this.ctx.object_name}/`
-        }
-        this.object_name_plural = `${this.ctx.object_name}s`
-        this.data = []
-        this.log(-1, "createState: adr:", this.adr)
-        this.declareDatamodels()
+        
+        // Set pluralization function or use default
+        this.pluralizeFunc = this.ctx.pluralRule || ((name) => `${name}s`);
+        this.object_name_plural = this.pluralizeFunc(this.ctx.object_name);
+        
+        // Store custom headers
+        this.customHeaders = this.ctx.customHeaders || {};
+        
+        this.data = [];
+        this.log(-1, "createState: adr:", this.adr);
+        this.declareDatamodels();
     }
 
     declareDatamodels() { /*//DOC
@@ -70,46 +80,122 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         this.datamodel_read
         this.datamodel_update
         */
-        throw("Please subclass declareDatamodels")
+        throw("Please subclass declareDatamodels");
     }
 
+    // Helper methods for HTTP requests
+    
+    /**
+     * Get common headers for all requests
+     * @param {Object} additionalHeaders - Additional headers to merge with default ones
+     * @returns {Headers} Headers object for fetch requests
+     */
+    getHeaders(additionalHeaders = {}) {
+        const headers = new Headers();
+        
+        // Add default headers
+        headers.append('Accept', 'application/json');
+        headers.append('Content-Type', 'application/json');
+        
+        // Add custom headers from constructor
+        Object.entries(this.customHeaders).forEach(([key, value]) => {
+            headers.append(key, value);
+        });
+        
+        // Add additional headers for this specific request
+        Object.entries(additionalHeaders).forEach(([key, value]) => {
+            headers.append(key, value);
+        });
+        
+        return headers;
+    }
+    
+    /**
+     * Handle API errors consistently
+     * @param {Response} response - Fetch response object
+     * @param {string} operation - Name of operation (create, read, update, delete)
+     * @returns {Promise<Object>} Error details or throws error
+     */
+    async handleApiError(response, operation) {
+        try {
+            // Try to parse error response as JSON
+            const errorData = await response.json();
+            const errorMessage = errorData.detail || 'Unknown error';
+            
+            this.err(`${operation}: request error ${response.status} - ${errorMessage}`);
+            this.signals.error.emit(`Error ${response.status}: "${errorMessage}" from server for operation ${operation}`);
+            
+            return errorData;
+        } catch (error) {
+            // If error response isn't valid JSON
+            this.err(`${operation}: non-JSON error response - ${response.statusText}`);
+            this.signals.error.emit(`Error ${response.status}: Non-JSON error response from server for operation ${operation}`);
+            
+            return { detail: response.statusText || 'Unknown error' };
+        }
+    }
+    
+    /**
+     * Execute a fetch request with error handling
+     * @param {string} url - URL to fetch
+     * @param {Object} options - Fetch options
+     * @param {string} operation - Operation name for error reporting
+     * @returns {Promise<Response|boolean>} Response object or false on error
+     */
+    async fetchWithErrorHandling(url, options, operation) {
+        try {
+            const response = await fetch(url, options);
+            
+            if (!response.ok) {
+                await this.handleApiError(response, operation);
+                return false;
+            }
+            
+            return response;
+        } catch (error) {
+            this.err(`${operation}: fetch failed with`, error);
+            this.signals.error.emit(`Error ${String(error)} for operation ${operation}`);
+            return false;
+        }
+    }
+
+    // CRUD Slots
+    
     create_slot(datum) { /*//DOC
         Create a new datum into the datasource.
         Argument datum is an object with key-value pairs.
         Emits signal data.
         */
-        let res = this.dataCheck(this.datamodel_create, datum)
+        let res = this.dataCheck(this.datamodel_create, datum);
         if (res.error != null) {
-            this.signals.error.emit(`Create: ${res.error}`)
-            return
+            this.signals.error.emit(`Create: ${res.error}`);
+            return;
         }
-        let datum_ = res.datum
-        // create & read with two different http calls
-        // could also be done in one call, where the reply
-        // is the new data
-        // feel free to rewrite :)
-
-        // from async into callback-hell:
-        this.create(datum_).then( (ok) =>  
-        {
-            if (!ok) { return }
-            this.read().then( (ok) => 
-            {
-                if (!ok) { return }
-                this.signals.data.emit(this.data)
+        
+        this.create(res.datum)
+            .then(success => {
+                if (success) {
+                    return this.read();
+                }
+                return false;
             })
-        })
+            .then(success => {
+                if (success) {
+                    this.signals.data.emit(this.data);
+                }
+            });
     }
 
     read_slot() { /*//DOC
         Tells datasource to re-read the data from the datasource and emit
         the data signal.
         */
-        this.read().then( (ok) => 
-        {
-            if (!ok) { return }
-            this.signals.data.emit(this.data)
-        })
+        this.read()
+            .then(success => {
+                if (success) {
+                    this.signals.data.emit(this.data);
+                }
+            });
     }
 
     update_slot(datum) { /*//DOC
@@ -117,223 +203,156 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         Argument datum is an object with key-value pairs.  It must have a key named "uuid".
         Emits signal error upon errors, signal data if the update was succesfull.
         */
-        this.log(-1, "update_slot", datum)
+        this.log(-1, "update_slot", datum);
+        
         if (!datum.hasOwnProperty('uuid')) {
-            this.log(0, "update_slot: incoming data missing uuid")
-            this.error.emit("Update: missing uuid")
-            return
+            this.log(0, "update_slot: incoming data missing uuid");
+            this.signals.error.emit("Update: missing uuid"); // Fixed this.error to this.signals.error
+            return;
         }
-        let res = this.dataCheck(this.datamodel_update, datum)
+        
+        let res = this.dataCheck(this.datamodel_update, datum);
         if (res.error != null) {
-            this.signals.error.emit(`Update: ${res.error}`)
-            return
+            this.signals.error.emit(`Update: ${res.error}`);
+            return;
         }
-        let datum_ = res.datum
-        this.update(datum_).then( (ok) =>
-        {
-            if (!ok) { return }
-            this.read().then( (ok) => 
-            {
-                if (!ok) { return }
-                this.signals.data.emit(this.data)
+        
+        this.update(res.datum)
+            .then(success => {
+                if (success) {
+                    return this.read();
+                }
+                return false;
             })
-        })
+            .then(success => {
+                if (success) {
+                    this.signals.data.emit(this.data);
+                }
+            });
     }
 
     delete_slot(uuid) { /*//DOC
         Delete an existing datum from the datasource, corresponding to a uuid.
         Emit signal error upon errors, signal data if the update was succesfull.
         */
-        this.delete(uuid).then( (ok) =>
-        {
-            if (!ok) { return }
-            this.read().then( (ok) => 
-            {
-                if (!ok) { return }
-                this.signals.data.emit(this.data)
+        this.delete(uuid)
+            .then(success => {
+                if (success) {
+                    return this.read();
+                }
+                return false;
             })
-        })
+            .then(success => {
+                if (success) {
+                    this.signals.data.emit(this.data);
+                }
+            });
     }
 
-    // HTTP calls
+    // HTTP calls implementation
+    
     async create(datum) { // C
-        const head = new Headers();
-        head.append('Accept', 'application/json');
-        head.append('Content-Type', 'application/json');
-        const pars = {
+        const headers = this.getHeaders();
+        
+        const options = {
             method: 'POST',
-            headers: head,
+            headers: headers,
             mode: 'cors',
             cache: 'default',
             body: JSON.stringify(datum)
         };
-        const req = 
-            new Request(`${this.adr}create`)
-        var response
-        try {
-            response = await fetch(req, pars)
-        } catch (error) {
-            this.err("create: fetch failed with", error)
-            this.signals.error.emit(
-                "Error "+String(error)+" for operation create"
-            )
-            return false
-        }
-        if (response.ok == false) {
-            try {
-                var resp = await response.json() // will give resp.detail
-            } catch (error) {
-                this.err('error detail response is not json')
-                resp = {detail: '???'} // create something for resp.detail
-            }
-            this.err("create: req got error", response.status, resp.detail)
-            this.signals.error.emit(
-                `Error ${response.status}: "${resp.detail}" from server for operation create`
-            )
-            return false
-        }
-        return true
+        
+        const response = await this.fetchWithErrorHandling(
+            `${this.adr}create`, 
+            options, 
+            'create'
+        );
+        
+        return !!response; // Convert to boolean
     }
 
     async read() { // R
-        const head = new Headers();
-        const pars = {
+        const headers = this.getHeaders();
+        
+        const options = {
             method: 'GET',
-            headers: head,
+            headers: headers,
             mode: 'cors',
             cache: 'default',
         };
-        const req = 
-            new Request(`${this.adr}read`)
-        var response
+        
+        const response = await this.fetchWithErrorHandling(
+            `${this.adr}read`, 
+            options, 
+            'read'
+        );
+        
+        if (!response) return false;
+        
         try {
-            response = await fetch(req, pars)
-        } catch (error) {
-            this.err("read: fetch failed with", error)
-            this.signals.error.emit(
-                "Error "+String(error)+" for operation read"
-            )
-            return false
-        }
-        if (response.ok == false) {
-            try {
-                var resp = await response.json() // will give resp.detail
-            } catch (error) {
-                this.err('error detail response is not json')
-                resp = {detail: '???'} // create something for resp.detail
+            const data = await response.json();
+            
+            this.log(-1, "read: resp", data);
+            
+            // Check if the expected data key exists
+            if (data[this.object_name_plural] === undefined) {
+                this.err(`Key ${this.object_name_plural} missing from server reply`);
+                this.signals.error.emit(`Key ${this.object_name_plural} missing from server reply`);
+                return false;
             }
-            this.err("read: req got error", response.status, resp.detail)
-            this.signals.error.emit(
-                `Error ${response.status}: "${resp.detail}" from server for operation read`
-            )
-            return false
-        }
-        var resp;
-        try {
-            resp = await response.json()
+            
+            this.data = data[this.object_name_plural];
+            this.log(-1, "read finished with", this.data);
+            return true;
+            
         } catch (error) {
-            console.error(error)
-            this.signals.error.emit(
-                `Error ${error} in operation read`
-            )
-            return false
+            this.err("Error parsing JSON response:", error);
+            this.signals.error.emit(`Error parsing response: ${error.message}`);
+            return false;
         }
-        this.log(-1,"read: resp", resp)
-        // backend replies with 
-        // "persons" : [obj1, obj2, ..] 
-        // this.object_name_plural : [obj1, obj2, ..]
-        if (resp[this.object_name_plural] == undefined) {
-            this.err(`Key ${this.object_name_plural} missing from server reply`)
-            this.signals.error.emit(
-                `Key ${this.object_name_plural} missing from server reply`
-            )
-            return false
-        }
-        this.data=resp[this.object_name_plural]
-        this.log(-1,"read finished with",this.data)
-        return true
     }
 
     async update(datum) { // U
-        // at this point we assume that datum has key uuid
-        const head = new Headers();
-        head.append('Accept', 'application/json');
-        head.append('Content-Type', 'application/json');
-        const pars = {
+        const headers = this.getHeaders();
+        
+        const options = {
             method: 'PUT',
-            headers: head,
+            headers: headers,
             mode: 'cors',
             cache: 'default',
             body: JSON.stringify(datum)
         };
-        const req = 
-            new Request(`${this.adr}update`)
-        var response
-        try {
-            response = await fetch(req, pars)
-        } catch (error) {
-            this.err("read: fetch failed with", error)
-            this.signals.error.emit(
-                "Error "+String(error)+" for operation update"
-            )
-            return false
-        }
-        if (response.ok == false) {
-            try {
-                var resp = await response.json() // gives resp.detail
-            } catch (error) {
-                this.err('error response is not json')
-                resp = {detail: '???'} // invent something into resp.detail
-            }
-            this.err("update: req got error", response.status, resp.detail)
-            this.signals.error.emit(
-                `Error ${response.status}: "${resp.detail}" from server for operation update`
-            )
-            return false
-        }
-        return true
+        
+        const response = await this.fetchWithErrorHandling(
+            `${this.adr}update`, 
+            options, 
+            'update'
+        );
+        
+        return !!response; // Convert to boolean
     }
 
     async delete(uuid) { // D
-        this.log(-1,"delete: uuid", uuid)
-        const head = new Headers();
-        head.append('Accept', 'application/json');
-        head.append('Content-Type', 'application/json');
-        const pars = {
+        this.log(-1, "delete: uuid", uuid);
+        
+        const headers = this.getHeaders();
+        
+        const options = {
             method: 'DELETE',
-            headers: head,
+            headers: headers,
             mode: 'cors',
             cache: 'default',
             body: JSON.stringify({"uuid": uuid})
         };
-        const req = 
-            new Request(`${this.adr}delete`)
-        var response
-        try {
-            response = await fetch(req, pars)
-        } catch (error) {
-            this.err("read: fetch failed with", error)
-            this.signals.error.emit(
-                "Error "+String(error)+" for operation update"
-            )
-            return false
-        }
-        if (response.ok == false) {
-            try {
-                var resp = await response.json() // gives resp.detail
-            } catch (error) {
-                console.warn('error response is not json')
-                resp = {detail: '???'} // invent something
-            }
-            this.err("delete: req got error", response.status, resp.detail)
-            this.signals.error.emit(
-                `Error ${response.status}: "${resp.detail}" from server for operation delete`
-            )
-            return false
-        }
-        return true
+        
+        const response = await this.fetchWithErrorHandling(
+            `${this.adr}delete`, 
+            options, 
+            'delete'
+        );
+        
+        return !!response; // Convert to boolean
     }
-
 
 } // HTTPDataSourceWidget
 

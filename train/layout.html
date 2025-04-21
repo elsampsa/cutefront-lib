@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<!--
+LLM: this is an example of a more serious SPA and how the signals and slots might be connected.
+The imported widgets are not available, so don't try to search for them.  
+-->
+<head>
+    <meta charset="utf-8">
+    <title>CuteFront App</title>
+    <link href="../lib/bootstrap-5.2.3-dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../lib/include/bootstrap-icons/css/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="../lib/include/fontawesome/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+        }
+        .main-content {
+            margin-left: 250px; /* Adjust based on your sidebar width */
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div id="sidebar" class="col-12 col-md-auto"></div>
+            <div id="main-group" class="col-12 col-md-9 col-lg-10">
+            </div>
+        </div>
+    </div>
+
+    <script src="../lib/bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { ElementWidget } from '../lib/base/widget.js';
+        import { ContainerWidget } from '../lib/base/containerwidget.js';
+        import { FapiGroup } from './fapi_group.js';
+        import { StateWidget } from '../lib/base/statemanager.js';
+        import { SidebarMenuItem } from '../lib/base/sidebarwidget.js';
+        import { FapiSidebar } from './fapi_sidebar.js';
+        import { UserFloaterWidget } from './userfloaterwidget.js';
+        import { DashboardSection, ItemsSection, SettingsSection, AdminSection } from './sections.js';
+        import { MockItemDataSourceWidget, AuthItemDataSourceWidget } from './item_datasource.js';
+        import { MockUserDataSourceWidget  } from './user_datasource.js';
+
+        const userFloaterWidget = new UserFloaterWidget("userFloater");
+
+        const itemDataSource = new MockItemDataSourceWidget();
+        /*
+        const itemDataSource = new AuthItemDataSourceWidget({
+            tokenStorageKey: "fastapi-fullstack-example",
+            base_address: "http://localhost:8000",
+            api_slug: 'api/v1',
+        });
+        */
+        const userDataSource = new MockUserDataSourceWidget();
+
+        itemDataSource.setLogLevel(-1);
+        userDataSource.setLogLevel(-1);
+
+        // Create all widgets
+        const dashboardSection = new DashboardSection();
+        const itemsSection = new ItemsSection();
+        const settingsSection = new SettingsSection();
+        const adminSection = new AdminSection();
+        const sections = [dashboardSection, itemsSection, settingsSection, adminSection]
+        // Set debug level for all widgets
+        sections.forEach(w => w.setLogLevel(-1));
+        const container = new ContainerWidget("main-group")
+        container.setLogLevel(-1);
+        container.setItems({
+            dashboardSection: dashboardSection,
+            itemsSection: itemsSection,
+            settingsSection: settingsSection,
+            adminSection: adminSection,
+        })
+
+        // DEFINE SIDEBARWIDGET
+        const fapiSidebar = new FapiSidebar("sidebar");
+        fapiSidebar.setItems({
+            dashboardItem: new SidebarMenuItem('Dashboard', 'dashboard', 'fas fa-home'),
+            itemsItem: new SidebarMenuItem('Items', 'items', 'fas fa-box'),
+            userSettingsItem: new SidebarMenuItem('User Settings', 'user-settings', 'fas fa-cog'),
+            adminItem: new SidebarMenuItem('Admin', 'admin', 'fas fa-user')
+        });
+        fapiSidebar.setUserEmail_slot('john@example.com');
+
+        // CONNECTION ROUTER SECTION FROM SIDEBARWIDGET TO CONTAINERWIDGET
+        fapiSidebar.items.dashboardItem.signals.clicked.connect((id)=>container.show_slot(container.items.dashboardSection));
+        fapiSidebar.items.itemsItem.signals.clicked.connect((id)=>container.show_slot(container.items.itemsSection));
+        fapiSidebar.items.userSettingsItem.signals.clicked.connect((id)=>container.show_slot(container.items.settingsSection));
+        fapiSidebar.items.adminItem.signals.clicked.connect((id)=>container.show_slot(container.items.adminSection));
+
+        container.show_slot(dashboardSection);
+
+        /* Connect data flow between the data source and the
+        items section.  Take a look into section.js:ItemSection how
+        the API for this is declared
+        */
+        // connect datamodel schema to items section
+        itemDataSource.signals.datamodel_create.connect((schema)=> 
+            container.items.itemsSection.datamodel_slot(schema)
+        );
+        // connect signal that carries actual data
+        itemDataSource.signals.data.connect((datums)=> 
+            container.items.itemsSection.fapiList.datums_slot(datums)
+        );
+        // connect signal that carries pagination info
+        itemDataSource.signals.pagination_changed.connect((paginationInfo)=> 
+            container.items.itemsSection.fapiList.set_pagination_slot(paginationInfo)
+        );
+        // connect signal that carries user's pagination request to data source
+        container.items.itemsSection.fapiList.signals.page_changed.connect(
+            (pageNumber) =>
+            itemDataSource.set_page_slot(pageNumber)
+        );
+        // connect "create" request to data source
+        container.items.itemsSection.form.signals.create.connect(
+            (datum) =>
+            itemDataSource.create_slot(datum)
+        );
+        // connect "update" request to datasource
+        container.items.itemsSection.form.signals.update.connect(
+            (datum) =>
+            itemDataSource.update_slot(datum)
+        );
+        // connect "delete" request to datasource
+        container.items.itemsSection.signals.delete_datum.connect(
+            (datum) =>
+            itemDataSource.delete_slot(datum)
+        )
+
+        // users
+        userDataSource.signals.datamodel_create.connect((schema)=> 
+            container.items.adminSection.form.datamodel_slot(schema)
+        );
+        userDataSource.signals.data.connect((datums)=> 
+            container.items.adminSection.fapiUserList.datums_slot(datums)
+        );
+
+        itemDataSource.model_slot() // propagate datamodel
+        itemDataSource.read_slot() // send data
+
+        userDataSource.model_slot() // propagate datamodel
+        userDataSource.read_slot() // send data
+
+    </script>
+</body>
+</html>
