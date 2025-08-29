@@ -82,6 +82,62 @@ function obj2csv(obj) { // inverse of csv2obj
         .join(",");
 }
 
+function extractDocstring(functionString) {
+    const docMatch = functionString.match(/\/\*\/\/DOC\s*([\s\S]*?)\*\//);
+    if (!docMatch) return '';
+    
+    let docstring = docMatch[1];
+    
+    // Split into lines and completely normalize each line
+    const lines = docstring
+        .split(/\r?\n/)
+        .map(line => line.trim())  // Remove ALL leading/trailing whitespace
+        .filter((line, index, arr) => {
+            // Remove empty lines at start and end, but keep internal empty lines
+            if (line === '') {
+                return index > 0 && index < arr.length - 1 && 
+                       arr.slice(0, index).some(l => l !== '') &&
+                       arr.slice(index + 1).some(l => l !== '');
+            }
+            return true;
+        });
+    
+    return lines.join('\n');
+}
+
+function isPlainObject(obj) { // check if this is a plain "dictionary" object
+    return obj && 
+           typeof obj === 'object' && 
+           !Array.isArray(obj) && 
+           obj.constructor === Object;
+}
+
+function subWidgetRecurse(mainobj) { /*
+    handle subwidgets using recursion
+    say, gets input this.widgets["subSectionWidget1"], this.widgets["subSectionWidget2"] where both are Widget instances.
+    runs through all key, value pairs
+    detecs that ("subSectionWidget1", obj = Widget), etc.
+    adds them to subdict
+    
+    suppose this.widgets["items"] = Object(), this.widgets["forms"] = Object()
+    detects that ("items", obj = Object)
+    adds "items" to subdict and recurses
+    ->
+    detects ("someWidget", obj = Widget), etc.
+    */
+    const tree = Object();
+    for (const [key, obj] of Object.entries(mainobj)) {
+        if (obj instanceof Widget) { // 1
+            tree[key] = obj.getAPITree(); // get API tree recursively for this subwidget
+        } else if (isPlainObject(obj)) { // 2
+            tree[key] = subWidgetRecurse(obj);
+        } else {
+            this.log(-1, "subWidgetRecurse: invalid subwidget", key);
+        }
+    }
+    return tree;
+}
+
 
 class Widget { /* The Base class implementation for CuteFront Widgets
 
@@ -91,7 +147,9 @@ class Widget { /* The Base class implementation for CuteFront Widgets
     constructor(id) {
         this.id = id
         this.loglevel = 0; // 0 = normal.  smaller: useless, bigger: usefull
+        // API exposure:
         this.signals = new Object(); // i.e. json
+        this.widgets = new Object(); // subwidgets of this widget the API user may access directly
         this.createSignals();
     }
     createElement() { // set the html element corresponding to this component
@@ -309,10 +367,80 @@ class Widget { /* The Base class implementation for CuteFront Widgets
     getElement(par) {
         return this.element.querySelector(`#${par}`); // WARNING: this doesn't work in action, why!?
     }
+
+    /* the API doc generator */
+    getAPITree() {
+        const api = {
+            class: this.constructor.name,
+            // path: this.constructor.sourceFile || '?', // hallucination..
+            /* // add on-demand
+            about: ``,
+            slots: {},
+            signals: {},
+            widgets: {},
+            methods: {}
+            */
+        };
+        // Introspect this object
+
+        const protoConstructor = Object.getPrototypeOf(this).constructor;
+        const ctor_docstring = extractDocstring(protoConstructor.toString());
+        if (ctor_docstring) {
+            api["about"] = ctor_docstring;
+        }
+
+        const methodNames = Object.getOwnPropertyNames(this.constructor.prototype);
+        for (const key of methodNames) {
+            const obj = this[key] // the method
+            console.log("introspect method:", key);
+            if (typeof this[key] === 'function' && key.endsWith('_slot')) {
+                if (!api.hasOwnProperty('slots')) {
+                    api["slots"] = Object();
+                }
+                api.slots[key] = null; // a slot but not necessarily with a docstring
+                // console.log("SLOT:", obj.toString());
+                const docs = extractDocstring(obj.toString());
+                if (docs) {
+                    api.slots[key] = Object();
+                    api.slots[key]["about"] = docs
+                }
+
+            } else if (typeof this[key] === 'function' && (key.startsWith("get__") || key.startsWith("set__"))) {
+                if (!api.hasOwnProperty('methods')) {
+                    api["methods"] = Object();
+                }
+                api.methods[key] = null; // a method but not necessarily with a docstring
+                const docs = extractDocstring(obj.toString());
+                if (docs) {
+                    api.methods[key] = Object();
+                    api.methods[key]["about"] = docs
+                }
+            }
+        }
+
+        if (Object.keys(this.signals).length > 0) {
+            api["signals"] = Object();
+            for (const [key, signal] of Object.entries(this.signals)) {
+                api.signals[key] = null; // a signal but not necessarily with a docstring
+                const docs = signal.getDocString();
+                if (docs) {
+                    api.signals[key] = Object();
+                    api.signals[key]["about"] = docs
+                }
+            }
+        }
+
+        if (Object.keys(this.widgets).length > 0) {
+            api["widgets"] = subWidgetRecurse(this.widgets);
+        }
+        
+        return api;
+    }
 }
 
 class Signal {
-    constructor() {
+    constructor(docstring=null) {
+        this.docstring=docstring;
         this.callbacks=new Array(); // all registered callback functions for this particular signal
     }
     connect(method) { // register method that's called when emit is called
@@ -334,6 +462,9 @@ class Signal {
     }
     close() { // close the signal: remove all callback connections
         delete this.callbacks;
+    }
+    getDocString() {
+        return this.docstring;
     }
 }
 

@@ -28,7 +28,7 @@ class BillBoard2 extends BillBoard { /*//DOC
 }
 
 class BallPlayer2 extends BallPlayer { /*//DOC
-    Extends class BallPlayer2.  This widget knows how to (de)serialize it's state
+    Extends class BallPlayer.  This widget knows how to (de)serialize it's state
     */
     createSignals() {
         super.createSignals()

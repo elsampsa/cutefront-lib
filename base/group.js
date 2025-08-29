@@ -1,8 +1,9 @@
 import { Widget, Signal } from './widget.js';
 
 class Group extends Widget { /*//DOC
-    Groups other widgets into group.  Only one widget from the group is shown at a time.  Other
-    ones are hidden
+    Groups other widgets into group.  
+    Only one widget from the group is shown at a time.  
+    Other ones are hidden
     */
     constructor(id) {
         super(id);
@@ -10,7 +11,8 @@ class Group extends Widget { /*//DOC
         this.createState();
     }
     createSignals() {
-        this.signals.state_change = new Signal(); /*//DOC This widget features state (de)serialization */
+        this.signals.state_change = new Signal("State de/serialization: state change");
+        this.signals.paska = new Signal();
     }
     stateToPar() { 
         /* state is encoded like this:
@@ -91,7 +93,7 @@ class Group extends Widget { /*//DOC
         this.makeList();
     }
     makeList() {
-        this.itemList = Object.values(this.items);
+        this.itemList = Object.values(this.widgets);
         for (const item of this.itemList) {
             item.setVisible(false);
         }

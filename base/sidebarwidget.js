@@ -224,7 +224,7 @@ class SidebarMenuItem extends Widget { /*//DOC
 }
 
 class SidebarMenu extends Widget { /*//DOC
-    For more details, see SidebarMenuItem docs.
+    For more details, see SidebarMenuItem docs (above in this same file)
     */
     constructor(id) {
         super(id);
