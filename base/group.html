@@ -1,47 +1,64 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Group Example</title>
-<link href="../bootstrap-5.2.3-dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
+    <head>
+        <meta charset="utf-8" />
+        <title>Group Example</title>
+        <link
+            href="../bootstrap-5.2.3-dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+    </head>
+    <body>
+        <div id="tx1"></div>
+        <div id="tx2"></div>
 
-<div id="tx1"></div>
-<div id="tx2"></div>
+        <button id="show-all">show-all</button>
+        <button id="hide-all">hide-all</button>
+        <button id="show1">show 1</button>
+        <button id="show2">show 2</button>
 
-<button id="show">show</button>
-<button id="hide">hide</button>
+    </body>
+    <script src="../bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
 
-</body>
-<script src="../bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { DummyWidget } from "./widget.js";
+        import { Include } from "./include.js";
+        import { Group } from "./group.js";
 
-<script type="module">
+        var tx1 = new Include("tx1");
+        var tx2 = new Include("tx2");
+        var dummy_widget = new DummyWidget();
+        var group = new Group("mygroup");
+        group.setItems({
+            "tx1": tx1, 
+            "tx2": tx2
+        });
 
-import { DummyWidget } from './widget.js';
-import { Include } from './include.js';
-import { Group } from './group.js';
+        group.setLogLevel(-1); // debugging
 
-var tx1 = new Include("tx1");
-var tx2 = new Include("tx2");
-var dummy_widget = new DummyWidget();
-var group = new Group("mygroup");
-group.setItems(tx1, tx2)
+        tx1.render_string_slot("HELLO 1");
+        tx2.render_string_slot("HELLO 2");
 
-group.setLogLevel(-1); // debugging
+        let showall = document.getElementById("show-all");
+        let hideall = document.getElementById("hide-all");
+        let show = document.getElementById("show1");
+        let hide = document.getElementById("show2");
 
-tx1.render_string_slot('HELLO 1');
-tx2.render_string_slot('HELLO 2');
+        showall.onclick = () => {
+            group.show_all_slot();
+        };
+        hideall.onclick = () => {
+            group.hide_all_slot();
+        };
 
-let show = document.getElementById("show");
-let hide = document.getElementById("hide");
+        show1.onclick = () => {
+            group.show_slot(tx1);
+        };
+        show2.onclick = () => {
+            group.show_slot(tx2);
+        };
 
-show.onclick = () => {
-    group.show();
-};
-hide.onclick = () => {
-    group.hide();
-};
+        window.genDocs = ["group"];
+    </script>
+</html>
 
-
-</script>

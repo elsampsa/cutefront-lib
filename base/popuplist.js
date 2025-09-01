@@ -14,12 +14,11 @@ class PopupList extends Widget {
     }
 
     createSignals() {
-        /*//DOC Emitted when an item is selected.  Carries an object:
-        item: name of the item in the list
-        datum: a cached datum that has been set with set_datum_slot
-        */
-        this.signals.itemSelected = new Signal(); 
-        this.signals.closed = new Signal(); /*//DOC Emitted when the popup is closed.  Carries the cached datum. */
+        this.signals.itemSelected = new Signal(`Emitted when an item is selected. Carries an object:
+            item: name of the item in the list
+            datum: a cached datum that has been set with set_datum_slot
+            `);
+        this.signals.closed = new Signal(`Emitted when the popup is closed.  Carries the cached datum.`);
     }
 
     show_slot(x, y) {

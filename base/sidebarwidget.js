@@ -55,8 +55,8 @@ class SidebarMenuItem extends Widget { /*//DOC
     }
 
     createSignals() {
-        this.signals.clicked = new Signal(); /*//DOC Emitted when this menu item is clicked */
-        this.signals.activate = new Signal(); /*//DOC Emitted when this menu item is highlighted/activated */
+        this.signals.clicked = new Signal(`Emitted when this menu item is clicked`);
+        this.signals.activate = new Signal(`Emitted when this menu item is highlighted/activated`);
     }
 
     createState() {
@@ -146,7 +146,7 @@ class SidebarMenuItem extends Widget { /*//DOC
         Add any number of SidebarMenuItem(s)
         */
         // Store the named mapping
-        this.items = itemsObject;
+        this.widgets = itemsObject;
         // Convert object to array for iteration
         this.subMenuItems = Object.values(itemsObject);
         for (const item of this.subMenuItems) {
@@ -224,7 +224,7 @@ class SidebarMenuItem extends Widget { /*//DOC
 }
 
 class SidebarMenu extends Widget { /*//DOC
-    For more details, see SidebarMenuItem docs.
+    For more details, see SidebarMenuItem docs (above in this same file)
     */
     constructor(id) {
         super(id);
@@ -289,11 +289,11 @@ class SidebarMenu extends Widget { /*//DOC
         Usage:
         setItems({ home: homeMenuItem, settings: settingsMenuItem })
         Access via:
-        - this.items.home -> returns homeMenuItem object
+        - this.widgets.home -> returns homeMenuItem object
         - this.menuItems -> array of all menu item objects
         */
         // Store the named mapping
-        this.items = itemsObject;
+        this.widgets = itemsObject;
         
         // Convert object to array for iteration
         this.menuItems = Object.values(itemsObject);

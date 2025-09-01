@@ -9,10 +9,8 @@ class Include extends Widget { /*//DOC
         this.createState();
     }
     createSignals() {
-        this.signals.file_read_ok = new Signal(); /*//DOC Emitted when a local html file has been succesfully read*/
-        this.signals.file_read_error = new Signal(); /*//DOC Emitted when there was an error in reading a local html file.
-        Carries name of the local file.
-        */
+        this.signals.file_read_ok = new Signal(`Emitted when a local html file has been succesfully read`);
+        this.signals.file_read_error = new Signal(`Emitted when there was an error in reading a local html file.  Carries name of the local file.`);
     }
     render_string_slot(input) { /*//DOC Renders html from an input string */
         this.render(input)

@@ -24,11 +24,11 @@ class DataSourceWidget extends Widget { /*//DOC
         this.createState();
     }
     createSignals() {
-        this.signals.data = new Signal(); /*//DOC Carries a list of all current datums from the datasource */
-        this.signals.datamodel_create = new Signal(); /*//DOC Carries datamodel for C operations */
-        this.signals.datamodel_read = new Signal(); /*//DOC Carries datamodel for R operations */
-        this.signals.datamodel_update = new Signal(); /*//DOC Carries datamodel for U operations */
-        this.signals.error = new Signal(); /*//DOC Carries information (a string) about an occurred error */
+        this.signals.data = new Signal(`Carries a list of all current datums from the datasource`);
+        this.signals.datamodel_create = new Signal(`Carries datamodel for C operations`);
+        this.signals.datamodel_read = new Signal(`Carries datamodel for R operations`);
+        this.signals.datamodel_update = new Signal(`Carries datamodel for U operations`);
+        this.signals.error = new Signal(`Carries information (a string) about an occurred error`);
     }
     create_slot(datum) { /*//DOC
         Create a new datum into the datasource.

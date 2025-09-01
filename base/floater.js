@@ -12,9 +12,7 @@ class Floater extends Widget { /*//DOC
         this.createState();
     }
     createSignals() { 
-        this.signals.clicked = new Signal(); /*//DOC
-        Emitted when the floater is clicked
-        */
+        this.signals.clicked = new Signal(`Emitted when the floater is clicked`);
     }
     createState() {
     }

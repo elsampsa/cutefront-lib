@@ -57,7 +57,7 @@ class BallPlayer extends Widget { /*//DOC
         this.createState();
     }
     createSignals() {
-        this.signals.throw_ball = new Signal(); /*//DOC sends the ball to another widget */
+        this.signals.throw_ball = new Signal("Sends the ball to another widget");
     }
     catch_ball_slot() { /*//DOC
         Sending a signal to this slot, gives the ball to this widget

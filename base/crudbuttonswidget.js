@@ -21,13 +21,13 @@ class CrudButtonsWidget extends Widget { /*//DOC
         this.createState();
     }
     createSignals() {
-        this.signals.create = new Signal(); /*//DOC Sent when "New" is clicked: requests a C (create) operation.  Carries nothing */
-        this.signals.update = new Signal(); /*//DOC Sent when "Edit" is clicked: requests a U (update) operation. Carries nothing */
-        this.signals.delete = new Signal(); /*//DOC Sent when "New" is clicked: requests a D (delete).  Carries uuid of the datum */
+        this.signals.create = new Signal(`Sent when New is clicked: requests a C (create) operation.  Carries nothing`);
+        this.signals.update = new Signal(`Sent when Edit is clicked: requests a U (update) operation. Carries nothing`);
+        this.signals.delete = new Signal(`Sent when Delete is clicked: requests a D (delete).  Carries uuid of the datum`);
     }
     current_datum_slot(datum) { /*//DOC
         Receives a generic datum json object.  The datum should have key "uuid".
-        The value of the key uuid is cached and used bu the "delete" signal.
+        The value of the key uuid is cached and used by the "delete" signal.
         */
         if (datum == null) { // no datum to del / edit
             this.del_button.disabled = true;

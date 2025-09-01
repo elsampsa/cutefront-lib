@@ -188,8 +188,8 @@ class FormWidget extends Widget {  /*//DOC
         this.createState();
     }
     createSignals() {
-        this.signals.create = new Signal(); /*//DOC Carries a json object corresponding to the newly created record */
-        this.signals.update = new Signal(); /*//DOC Carries a json object corresponding to an updated record */
+        this.signals.create = new Signal(`Carries a json object corresponding to the newly created record`);
+        this.signals.update = new Signal(`Carries a json object corresponding to an updated record`);
     }
     datamodel_slot(datamodel) { /*//DOC
         The datamodel to which the input form should adapt to.  

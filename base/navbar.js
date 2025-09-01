@@ -11,7 +11,7 @@ class Navitem extends Widget { /*//DOC A menu item that can be placed into Navba
         this.createState();
     }
     createSignals() {
-        this.signals.clicked = new Signal(); /*//DOC Emitted when this item is clicked.  Carries tag defined in ctor. */
+        this.signals.clicked = new Signal(`Emitted when this item is clicked.  Carries tag defined in ctor.`);
     }
     left_slot() { /*//DOC Aligns this item to the left.
     No parameters.
@@ -115,7 +115,7 @@ class Navbar extends Widget { /*//DOC A horizontal navigation bar where you can 
         this.createState();
     }
     createSignals() {
-        this.signals.clicked = new Signal(); /*//DOC Emitted when this Navbar is clicked.  Carries nothing.*/
+        this.signals.clicked = new Signal(`Emitted when this Navbar is clicked.  Carries nothing.`);
     }
     reset_scroll_slot() { /*//DOC 
         Resets the page scroll state, so that the whole page is scrolled to y=0, taking into account navbar's height
@@ -333,7 +333,6 @@ class HomePageNavbar extends Navbar { /*//DOC A horizontal navigation bar where 
 
 
 }
-
 
 export { Navbar, HomePageNavbar, Navitem }
 

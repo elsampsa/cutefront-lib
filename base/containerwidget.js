@@ -5,7 +5,7 @@ class ContainerWidget extends Group {
     /*//DOC
     Manages main content area that can host multiple child widgets.
     Only one child widget is visible at a time.
-    Child widgets create their own elements that are attached to this container.
+    Child widgets are set using setItems method.
     */
     constructor(id) {
         super(id);
@@ -30,7 +30,6 @@ class ContainerWidget extends Group {
         // Container stays empty - child widgets will be attached in setItems
     }
 
-
     setItems(widget_dict) { /*//DOC
         Set the child widgets for this container.
         Argument is an object where each key is widget name and value is the widget instance
@@ -50,7 +49,7 @@ class ContainerWidget extends Group {
         }
 
         // Store reference to widgets
-        this.items = widget_dict;
+        this.widgets = widget_dict;
         
         // Get array of widgets for DOM manipulation
         const widgets = Object.values(widget_dict);

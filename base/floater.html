@@ -19,13 +19,13 @@
 import { DummyWidget } from './widget.js';
 import { Floater } from './floater.js';
 var dummy_widget = new DummyWidget();
-var widget = new Floater();
+var widget = new Floater("../static/cutefront.png");
 
 widget.setLogLevel(-1); // debugging
 
 // connect signals
-widget.signals.clicked.connect(
-    dummy_widget.slot.bind(dummy_widget) // simply dumps the signal data to the console
+widget.signals.clicked.connect( () =>
+    dummy_widget.slot()
 );
 
 </script>

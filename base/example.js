@@ -13,9 +13,7 @@ class MyWidget extends Widget { /*//DOC
         this.createState();
     }
     createSignals() { // called automagically by super() in the ctor
-        this.signals.some_signal = new Signal(); /*//DOC 
-        Explain what this signal carries & when it is emitted
-        */
+        this.signals.some_signal = new Signal(`Explain what this signal carries & when it is emitted`);
     }
     some_slot(par) { /*//DOC
         Explain what kind of data this slot expects

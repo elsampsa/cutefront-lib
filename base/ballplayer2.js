@@ -5,7 +5,7 @@ class BillBoard2 extends BillBoard { /*//DOC
     Extends class BillBoard.  This widget knows how to (de)serialize it's state
     */
     createSignals() {
-        this.signals.state_change = new Signal();
+        this.signals.state_change = new Signal("state change");
     }
     ball_throw_slot() { /*//DOC
         Sending signal to this slot, increments the number of how many times
@@ -28,11 +28,11 @@ class BillBoard2 extends BillBoard { /*//DOC
 }
 
 class BallPlayer2 extends BallPlayer { /*//DOC
-    Extends class BallPlayer2.  This widget knows how to (de)serialize it's state
+    Extends class BallPlayer.  This widget knows how to (de)serialize it's state
     */
     createSignals() {
         super.createSignals()
-        this.signals.state_change = new Signal() // required for state management
+        this.signals.state_change = new Signal("state change") // required for state management
     }
     catch_ball_slot() { /*//DOC
         Sending a signal to this slot, gives the ball to this widget

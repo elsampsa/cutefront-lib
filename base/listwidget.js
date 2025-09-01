@@ -17,7 +17,7 @@ class ListItemWidget extends Widget { /*//DOC
         this.createElement();
     }
     createSignals() {
-        this.signals.clicked = new Signal() /*//DOC Emitted when this list item is clicked.  Carries uuid.*/
+        this.signals.clicked = new Signal(`Emitted when this list item is clicked.  Carries uuid.`);
     }
     activate_slot() { /*//DOC
         Highlights this list item
@@ -89,7 +89,7 @@ class ListWidget extends Widget { /*//DOC
         this.generateList([]);
     }
     createSignals() {
-        this.signals.current_datum = new Signal(); /*//DOC Carries the active/chosen datum.  If nothing chosen, the carries null. */
+        this.signals.current_datum = new Signal(`Carries the active/chosen datum.  If nothing chosen, the carries null.`);
     }
     datums_slot(datums) { /*//DOC
         Set all the datums in the list.
