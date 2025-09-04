@@ -48,6 +48,96 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         */
     }
 
+    // CRUD Slots
+    
+    create_slot(datum) { /*//DOC
+        Create a new datum into the datasource.
+        Argument datum is an object with key-value pairs.
+        Emits signal data.
+        */
+        let res = this.dataCheck(this.datamodel_create, datum);
+        if (res.error != null) {
+            this.signals.error.emit(`Create: ${res.error}`);
+            return;
+        }
+        
+        this.httpCreate(res.datum)
+            .then(success => {
+                if (success) {
+                    return this.read();
+                }
+                return false;
+            })
+            .then(success => {
+                if (success) {
+                    this.signals.data.emit(this.data);
+                }
+            });
+    }
+
+    read_slot() { /*//DOC
+        Tells datasource to re-read the data from the datasource and emit
+        the data signal.
+        */
+        this.httpRead()
+            .then(success => {
+                if (success) {
+                    this.signals.data.emit(this.data);
+                }
+            });
+    }
+
+    update_slot(datum) { /*//DOC
+        Update an existing datum in the datasource.
+        Argument datum is an object with key-value pairs.  It must have a key named "uuid".
+        Emits signal error upon errors, signal data if the update was succesfull.
+        */
+        this.log(-1, "update_slot", datum);
+        
+        if (!datum.hasOwnProperty('uuid')) {
+            this.log(0, "update_slot: incoming data missing uuid");
+            this.signals.error.emit("Update: missing uuid"); // Fixed this.error to this.signals.error
+            return;
+        }
+        
+        let res = this.dataCheck(this.datamodel_update, datum);
+        if (res.error != null) {
+            this.signals.error.emit(`Update: ${res.error}`);
+            return;
+        }
+        
+        this.httpUpdate(res.datum)
+            .then(success => {
+                if (success) {
+                    return this.read();
+                }
+                return false;
+            })
+            .then(success => {
+                if (success) {
+                    this.signals.data.emit(this.data);
+                }
+            });
+    }
+
+    delete_slot(uuid) { /*//DOC
+        Delete an existing datum from the datasource, corresponding to a uuid.
+        Emit signal error upon errors, signal data if the update was succesfull.
+        */
+        this.httpDelete(uuid)
+            .then(success => {
+                if (success) {
+                    return this.read();
+                }
+                return false;
+            })
+            .then(success => {
+                if (success) {
+                    this.signals.data.emit(this.data);
+                }
+            });
+    }
+
     createState() {
         if (this.ctx == undefined) {
             // invoked by the superclass (DataSourceWidget) ctor
@@ -159,99 +249,10 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         }
     }
 
-    // CRUD Slots
     
-    create_slot(datum) { /*//DOC
-        Create a new datum into the datasource.
-        Argument datum is an object with key-value pairs.
-        Emits signal data.
-        */
-        let res = this.dataCheck(this.datamodel_create, datum);
-        if (res.error != null) {
-            this.signals.error.emit(`Create: ${res.error}`);
-            return;
-        }
-        
-        this.create(res.datum)
-            .then(success => {
-                if (success) {
-                    return this.read();
-                }
-                return false;
-            })
-            .then(success => {
-                if (success) {
-                    this.signals.data.emit(this.data);
-                }
-            });
-    }
-
-    read_slot() { /*//DOC
-        Tells datasource to re-read the data from the datasource and emit
-        the data signal.
-        */
-        this.read()
-            .then(success => {
-                if (success) {
-                    this.signals.data.emit(this.data);
-                }
-            });
-    }
-
-    update_slot(datum) { /*//DOC
-        Update an existing datum in the datasource.
-        Argument datum is an object with key-value pairs.  It must have a key named "uuid".
-        Emits signal error upon errors, signal data if the update was succesfull.
-        */
-        this.log(-1, "update_slot", datum);
-        
-        if (!datum.hasOwnProperty('uuid')) {
-            this.log(0, "update_slot: incoming data missing uuid");
-            this.signals.error.emit("Update: missing uuid"); // Fixed this.error to this.signals.error
-            return;
-        }
-        
-        let res = this.dataCheck(this.datamodel_update, datum);
-        if (res.error != null) {
-            this.signals.error.emit(`Update: ${res.error}`);
-            return;
-        }
-        
-        this.update(res.datum)
-            .then(success => {
-                if (success) {
-                    return this.read();
-                }
-                return false;
-            })
-            .then(success => {
-                if (success) {
-                    this.signals.data.emit(this.data);
-                }
-            });
-    }
-
-    delete_slot(uuid) { /*//DOC
-        Delete an existing datum from the datasource, corresponding to a uuid.
-        Emit signal error upon errors, signal data if the update was succesfull.
-        */
-        this.delete(uuid)
-            .then(success => {
-                if (success) {
-                    return this.read();
-                }
-                return false;
-            })
-            .then(success => {
-                if (success) {
-                    this.signals.data.emit(this.data);
-                }
-            });
-    }
-
     // HTTP calls implementation
     
-    async create(datum) { // C
+    async httpCreate(datum) { // C
         const headers = this.getHeaders();
         
         const options = {
@@ -271,7 +272,7 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         return !!response; // Convert to boolean
     }
 
-    async read() { // R
+    async httpRead() { // R
         const headers = this.getHeaders();
         
         const options = {
@@ -312,7 +313,7 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         }
     }
 
-    async update(datum) { // U
+    async httpUpdate(datum) { // U
         const headers = this.getHeaders();
         
         const options = {
@@ -332,7 +333,7 @@ class HTTPDataSourceWidget extends DataSourceWidget { /*//DOC
         return !!response; // Convert to boolean
     }
 
-    async delete(uuid) { // D
+    async httpDelete(uuid) { // D
         this.log(-1, "delete: uuid", uuid);
         
         const headers = this.getHeaders();
