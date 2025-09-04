@@ -1,0 +1,71 @@
+DataSourceWidget:
+    state:
+        data: cached data
+    signals:
+        data: carries data
+    # **** new ************
+    read_slot(): |
+        signals.data.emit(this.data)
+    create_slot(datum): |
+        create a new datum
+        signals.data.emit(this.data)
+
+    HTTPDataSourceWidget:
+        # ***** override *******
+        read_slot(): |
+            httpRead()
+            signals.data.emit(this.data)
+        create_slot(datum): |
+            httpCreate(datum)
+            signals.data.emit(this.data)
+        # **** new *************
+        fetchWithErrorHandling(): |
+            uses async fetch
+        httpRead(): |
+            fetchWithErrorHandling()
+            caches into this.data
+        httpCreate(datum): | 
+            fetchWithErrorHandling()
+            caches into this.data
+
+        AuthHTTPDataSourceWidget: 
+            about: |
+                implements authentication
+            # ***** override ********
+            fetchWithErrorHandling():
+                handle auth errors correctly
+            # **** new **************
+            set_token_slot(token): |
+                sets the authentication token
+
+            AuthItemDataSourceWidget:
+                about: |
+                    implements paging
+                state: |
+                    current_page, total_items
+                signals:
+                    pagination_changed: | 
+                        carries current_page, total_pages, page_size, total_items
+                # **** new *************
+                set_page_slot(page): |
+                    this.current_page = page
+                    NOTE: "back-and-forth" jumping in inheritance
+                    read_slot() -> HTTPDataSourceWidget.read_slot() -> this.httpRead() 
+                # ***** override *******
+                httpRead(): |
+                    includes pagination info
+                httpCreate(datum):
+                    includes pagination info
+
+    MockItemDataSourceWidget: # NOTE: has cached mock data
+        about: |
+            mocks AuthItemDataSourceWidget
+        state:
+            page state: current_page, total_pages, page_size, total_items
+            data: current paged data
+            base_data: all dummy data
+        signals:
+            pagination_changed: | 
+                carries current_page, total_pages, page_size, total_items
+        set_page_slot: |
+            set this.data from this.base_data
