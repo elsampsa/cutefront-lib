@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTTPDataSource Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        button { margin: 5px; padding: 5px 10px; }
+        .section { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+        #data-display { background: #f5f5f5; padding: 10px; white-space: pre; }
+    </style>
+</head>
+<body>
+    <h1>HTTPDataSource Test</h1>
+    
+    <!-- Mock Server Controls -->
+    <div class="section">
+        <h3>Mock Server Controls</h3>
+        <button onclick="setAuthToken('valid-token')">Set Valid Auth Token</button>
+        <button onclick="setAuthToken('invalid-token')">Set Invalid Auth Token</button>
+        <button onclick="setAuthToken(null)">Clear Auth Token</button>
+        <button onclick="simulateNetworkError()">Simulate Network Error</button>
+        <button onclick="resetMockData()">Reset Mock Data</button>
+        <div id="mock-status">Mock server ready</div>
+    </div>
+
+    <!-- CRUD Operations -->
+    <div class="section">
+        <h3>CRUD Operations</h3>
+        <button onclick="readData()">READ</button>
+        <button onclick="createData()">CREATE (random data)</button>
+        <button onclick="updateData()">UPDATE (first item)</button>
+        <button onclick="deleteData()">DELETE (first item)</button>
+    </div>
+
+    <!-- Pagination -->
+    <div class="section">
+        <h3>Pagination</h3>
+        <button onclick="setPage(1, 3)">Page 1, Size 3</button>
+        <button onclick="setPage(2, 3)">Page 2, Size 3</button>
+        <button onclick="setPage(3, 3)">Page 3, Size 3</button>
+        <button onclick="setPage(1, 0)">No Pagination</button>
+    </div>
+
+    <!-- Auth Testing -->
+    <div class="section">
+        <h3>Auth Testing</h3>
+        <button onclick="testTokenRefresh()">Test Token Refresh</button>
+        <button onclick="testUnauthorized()">Test 401 Error</button>
+    </div>
+
+    <!-- Results -->
+    <div class="section">
+        <h3>Data</h3>
+        <div id="data-display"></div>
+    </div>
+
+    <!-- Test Log -->
+    <div class="section">
+        <h3>Test Log</h3>
+        <button onclick="clearLog()">Clear Log</button>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <div id="test-log"></div>
+    </div>
+
+    <script type="module">
+        import { HTTPDataSource } from './httpdatasource.js';
+        import { AuthModel } from './authmodel.js';
+        import { QueryParamPagination } from './pagination.js';
+        import { setupMockServer } from './mockserver.js';
+        
+        // Setup mock server
+        window.mockServer = setupMockServer();
+        
+        // Create HTTPDataSource with auth and pagination
+        const authModel = new AuthModel();
+        const paginationStrategy = new QueryParamPagination();
+        
+        window.dataSource = new HTTPDataSource()
+            .setBaseUrl('https://mock-api.example.com')
+            .setAuthModel(authModel)
+            .setPaginationStrategy(paginationStrategy);
+        
+        // Global functions for buttons
+        window.readData = async function() {
+            try {
+                const data = await dataSource.read();
+                displayData(data);
+                
+                if (typeof data === 'string') {
+                    log('READ ERROR', data);
+                } else {
+                    log('READ SUCCESS', `${data.length} items returned`);
+                    
+                    // Show pagination info if available
+                    if (dataSource.paginationStrategy) {
+                        const pageInfo = dataSource.paginationStrategy.getPaginationInfo();
+                        log('PAGINATION INFO', `Page ${pageInfo.currentPage} of ${pageInfo.totalPages}, ${pageInfo.totalItems} total items`);
+                    }
+                }
+            } catch (error) {
+                log('READ ERROR', error.message);
+                displayData('Error: ' + error.message);
+            }
+        };
+        
+        window.createData = async function() {
+            const randomNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'];
+            const randomSurnames = ['Smith', 'Johnson', 'Brown', 'Davis', 'Wilson'];
+            const randomDomains = ['example.com', 'test.org', 'demo.net'];
+            
+            const datum = {
+                name: randomNames[Math.floor(Math.random() * randomNames.length)],
+                surname: randomSurnames[Math.floor(Math.random() * randomSurnames.length)],
+                email: `user${Date.now()}@${randomDomains[Math.floor(Math.random() * randomDomains.length)]}`,
+                age: Math.floor(Math.random() * 50) + 18
+            };
+            
+            try {
+                const result = await dataSource.create(datum);
+                
+                if (typeof result === 'string') {
+                    log('CREATE ERROR', result);
+                } else {
+                    log('CREATE SUCCESS', `Created item with ID ${result.id}`);
+                    await readData();
+                }
+            } catch (error) {
+                log('CREATE ERROR', error.message);
+            }
+        };
+        
+        window.updateData = async function() {
+            try {
+                // Get current data to find first item
+                const currentData = mockServer.getData();
+                if (currentData.length === 0) {
+                    log('UPDATE ERROR', 'No data to update');
+                    return;
+                }
+                
+                const firstItem = currentData[0];
+                const updatedItem = {
+                    ...firstItem,
+                    name: 'UPDATED_' + firstItem.name,
+                    age: (firstItem.age || 25) + 1
+                };
+                
+                const result = await dataSource.update(updatedItem);
+                
+                if (typeof result === 'string') {
+                    log('UPDATE ERROR', result);
+                } else {
+                    log('UPDATE SUCCESS', `Updated item with ID ${result.id}`);
+                    await readData();
+                }
+            } catch (error) {
+                log('UPDATE ERROR', error.message);
+            }
+        };
+        
+        window.deleteData = async function() {
+            try {
+                // Get current data to find first item
+                const currentData = mockServer.getData();
+                if (currentData.length === 0) {
+                    log('DELETE ERROR', 'No data to delete');
+                    return;
+                }
+                
+                const firstId = currentData[0].id;
+                const result = await dataSource.delete(firstId);
+                
+                if (typeof result === 'string') {
+                    log('DELETE ERROR', result);
+                } else {
+                    log('DELETE SUCCESS', `Deleted item with ID ${firstId}`);
+                    await readData();
+                }
+            } catch (error) {
+                log('DELETE ERROR', error.message);
+            }
+        };
+        
+        window.setPage = async function(page, size) {
+            try {
+                if (size === 0) {
+                    dataSource.setPage(null);
+                    log('PAGINATION', 'Disabled pagination');
+                } else {
+                    dataSource.setPage({ currentPage: page, pageSize: size });
+                    log('PAGINATION', `Set to page ${page}, size ${size}`);
+                }
+                await readData();
+            } catch (error) {
+                log('PAGINATION ERROR', error.message);
+                throw error;
+            }
+        };
+        
+        // Mock server controls
+        window.setAuthToken = function(token) {
+            if (token) {
+                dataSource.setAuth({ token: token });
+                document.getElementById('mock-status').textContent = `Auth token set: ${token}`;
+                log('AUTH', `Set token: ${token}`);
+            } else {
+                dataSource.setAuth({ token: null });
+                document.getElementById('mock-status').textContent = 'Auth token cleared';
+                log('AUTH', 'Cleared token');
+            }
+        };
+        
+        window.simulateNetworkError = function() {
+            mockServer.simulateError(500);
+            document.getElementById('mock-status').textContent = 'Simulating network error (next request will fail)';
+            log('MOCK', 'Simulating network error');
+        };
+        
+        window.resetMockData = function() {
+            mockServer.resetData();
+            document.getElementById('mock-status').textContent = 'Mock data reset';
+            log('MOCK', 'Data reset to default');
+        };
+        
+        // Auth testing
+        window.testTokenRefresh = async function() {
+            // Set up for token refresh test
+            authModel.refreshToken = 'valid-refresh-token';
+            dataSource.setAuth({ token: 'expired-token' });
+            log('AUTH TEST', 'Testing token refresh with expired token');
+            
+            try {
+                await readData();
+            } catch (error) {
+                log('AUTH TEST ERROR', error.message);
+            }
+        };
+        
+        window.testUnauthorized = async function() {
+            dataSource.setAuth({ token: 'definitely-invalid-token' });
+            log('AUTH TEST', 'Testing with invalid token (should get 401)');
+            
+            try {
+                await readData();
+            } catch (error) {
+                log('AUTH TEST', '401 error as expected');
+            }
+        };
+        
+        window.clearLog = function() {
+            document.getElementById('test-log').textContent = '';
+        };
+        
+        window.runAllTests = async function() {
+            clearLog();
+            log('TEST START', 'Running all tests...');
+            
+            // Test 1: Read initial data
+            await readData();
+            await delay(500);
+            
+            // Test 2: Set valid auth and read
+            setAuthToken('valid-token');
+            await readData();
+            await delay(500);
+            
+            // Test 3: Create some items
+            await createData();
+            await delay(500);
+            await createData();
+            await delay(500);
+            
+            // Test 4: Update first item
+            await updateData();
+            await delay(500);
+            
+            // Test 5: Test pagination
+            await setPage(1, 2);
+            await delay(500);
+            await setPage(2, 2);
+            await delay(500);
+            
+            // Test 6: Delete first item
+            await deleteData();
+            await delay(500);
+            
+            // Test 7: Test error handling
+            simulateNetworkError();
+            await delay(200);
+            await readData();
+            await delay(1500); // Wait for error simulation to end
+            
+            // Test 8: Reset and final read
+            resetMockData();
+            await setPage(1, 0);
+            await delay(500);
+            
+            log('TEST END', 'All tests completed');
+        };
+        
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        function displayData(data) {
+            if (typeof data === 'string') {
+                document.getElementById('data-display').textContent = 'Error: ' + data;
+                return;
+            }
+            
+            document.getElementById('data-display').textContent = JSON.stringify(data, null, 2);
+        }
+        
+        function log(action, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${action}: ${message}\n`;
+            document.getElementById('test-log').textContent += logEntry;
+        }
+        
+        // Initialize
+        setAuthToken('valid-token');
+        readData();
+    </script>
+</body>
+</html>

@@ -1,6 +1,8 @@
 /*LLM: Beginning of file "hatelike.js"
 
-This file defines a widget class "HateLike" with a collapsable bootstrap accordeon.  Within the accordeon, there is a radio button
+Let's do javascript frontend UI programming using objects - like in the Qt framework! :)  This example gives you the basics to write us some widgets.
+
+This example file defines a widget class "HateLike" with a collapsable bootstrap accordeon.  Within the accordeon, there is a radio button
 with two choises: "I like it" and "I hate it".  There is also a text field that shows how many times the user has
 clicked either "I like it" or "I hate it".  Each like increments the text field value by one, while each hate decreases it by one.
 
@@ -9,56 +11,35 @@ Each time a user clicks any of the radio buttons, a text message signal is also 
 The widget also has a slot that receives a text message signal from some other widget.  If the incoming signal text includes the word "like" then the
 text field value is incremented by one, if it includes text "hate", then it is decreased by one.
 */
-import { Widget, Signal, randomID } from '../lib/base/widget.js';
+import { Widget, Signal, randomID } from '../base/widget.js' //LLM: relative import path for this particular training/example js file
+// import { Widget, Signal, randomID } from '../lib/base/widget.js'; //LLM: this is the normal relative import path
 
 /*LLM: Widget is the base class for all widgets.
-Please, put always the methods described below in the same order:
-constructor, createSignals, _slot functions, createState, createElement
-The class, signals and slots should be documented with a string starting
-with "//DOC" to facilitate autodocumentation
-
-Note how withing the DOC section we declare the API of signals and slots with:
-
-API
-```yaml
-signals:
-    message: carries a string
-slots:
-    input_text_slot: receives a string
-```
-
-If the signal or slot parameters would have some internal object structure we should do this:
-
-API
-```yaml
-signals:
-    message:
-        title: title of the message
-        data: data of the message
-slots:
-    input_text_slot:
-        title: title of the message
-        data: data of the message
-```
-
+In a new widget implementation, put always the methods in the same order for maximal clarity:
+constructor
+createSignals
+_slot functions
+createState
+createElement
+any internal methods
+The widget class and its user-facing API functions (especially the _slot methods) should be documented with a docstring starting with "//DOC" (see below).
+Signals are documented by giving a docstring in their constructor (see also below).
 */
 class HateLike extends Widget { /*//DOC
     Has two radio buttons with choices "I Like it" and "I hate it".
     Shows a text field how many times it has been liked or hated.
-
-    API
-    ```yaml
-    signals:
-        message: carries a string
-    slots:
-        input_text_slot: receives a string
-    ```
     */
     constructor(id) { // LLM: Usually, the constructor should only accept a single parameter (id).
         /* LLM: The id parameter is an html element's id attribute that is used to identify this.element in createElement() method
-        default values for internal state should be set in the createState() method instead
+        default values for internal state should preferably be set in the createState() method instead
         */
-        super(id); // LLM: calls createSignals() and sets this.id = id
+        super(id); 
+        /* LLM: Some important things that base class ctor does:
+        creates this.signals "namespace" (i.e. a plain js Object) for signals
+        creates this.widget "namespace" for subwidgets - more sophisticated widgets can have subwidgets, say, a formfield may have widgets corresponding to each input field etc.
+        calls createSignals() and sets this.id = id
+        creates 
+        */
         this.createElement();
         this.createState();
     }
@@ -68,7 +49,7 @@ class HateLike extends Widget { /*//DOC
     If this class inherits signals, don't forget to call the parent classes createSignals method.
     */
         // super.createSignals(); // LLM: add if necessary
-        this.signals.message = new Signal(); /*//DOC Carries a string.  Message that depends which radiobutton has been clicked. */
+        this.signals.message = new Signal("Carries a string.  Message that depends which radiobutton has been clicked"); // LLM: note how signals are autodocumented
     }
     /* LLM: Next define slots where this widget can receive signals from other widgets.
     Please use always the "snake-case" syntax for slots and always include "_slot" in the name of the function,
@@ -78,7 +59,7 @@ class HateLike extends Widget { /*//DOC
     */
     input_text_slot(txt) { /*//DOC
         Receives a text message from another widget
-        Input txt is a string
+        :param txt: a string
         */
         // this.txt = structuredClone(txt) // LLM: if we would cache the data coming with the signal, we should make an immutable copy of it
         if (txt.includes("like")) {
@@ -87,12 +68,7 @@ class HateLike extends Widget { /*//DOC
         else if (txt.includes("hate")) {
             this.fhate()
         }
-        /* LLM: if the parameter for the slot would need to have some complex structure, declare it in the DOC section like this:
-        ```yaml
-        txt:
-            title: title of the message
-            data: data of the message
-        ```
+        // LLM: if the parameter for the slot would need to have some complex structure, declare it in the DOC section.
     }
     createState() { /* LLM: Initializes state variables created by createElement (see below).
         Creates additional state variables if necessary.
@@ -100,7 +76,7 @@ class HateLike extends Widget { /*//DOC
         if (this.element == null) { // LLM: this check must always be included
             return
         }
-        // this.txt = null // LLM: if we would cache in the state the text received in function input_text_slot 
+        // this.txt = null // LLM: if we would cache in this widget's state the text received in function input_text_slot.  But prefer always caching in the html elements themselves
         // LLM: state variables created in createElement (see below):
         this.counter_field.innerHTML='0'
         this.like.checked = true; // initial value: the "I Like it" radio button is enabled

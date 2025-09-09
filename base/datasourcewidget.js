@@ -1,317 +1,240 @@
-import { Widget, Signal, uuidv4 } from './widget.js';
+/*
+DataSourceWidget - Coordinates data operations with UI signals/slots
+
+This widget doesn't create any UI elements itself. It acts as a coordinator between
+data sources and UI components, handling CRUD operations and pagination through signals.
+*/
+
+import { Widget, Signal } from './widget.js';
 
 class DataSourceWidget extends Widget { /*//DOC
-    This widget does not create any graphical element.
-    It presents a generic datasource and must be subclassed.
-    
-    Data is accepted into the datasource via slots.
-    Datasource emits signals that declare datamodels.  Downstream widgets can then adapt themselves to the desired datamodels.
-    There is typically a separate datamodel for each CRUD operation.
-    Datasource also emits any new or updated data via a signal which can be connected to downstream widgets.
-
-    A datamodel is an object with metadata for all data fields
-    key: the data key
-    value: a dictionary with keys "label", "help" and "check", where:
-    - label: a label to be used with forms
-    - help: a descriptive string about the data element
-    - check: a function that checks this data element
-
-    A datasource class should also define functions for checking data fields, see below.
+    Coordinates data operations with UI signals/slots.
+    Handles pagination state for UI.
+    This is not a UI component itself - just sends signals to downstream UI components.
+    No data caching - all data flows through signals.
+    Error checking is done by DataSource itself and downstream widgets.
     */
-    constructor() {
-        super();
+    
+    constructor(id, dataSource) {
+        super(id);
+        this.dataSource = dataSource;
         this.createElement();
         this.createState();
     }
-    createSignals() {
-        this.signals.data = new Signal(`Carries a list of all current datums from the datasource`);
-        this.signals.datamodel_create = new Signal(`Carries datamodel for C operations`);
-        this.signals.datamodel_read = new Signal(`Carries datamodel for R operations`);
-        this.signals.datamodel_update = new Signal(`Carries datamodel for U operations`);
-        this.signals.error = new Signal(`Carries information (a string) about an occurred error`);
+    
+    createSignals() { 
+        this.signals.data = new Signal("Carries current data (paginated or all)");
+        this.signals.datamodel_create = new Signal("Carries dataModel.create. Can be connected to downstream widgets like forms for validation");
+        this.signals.datamodel_read = new Signal("Carries dataModel.read"); 
+        this.signals.datamodel_update = new Signal("Carries dataModel.update");
+        this.signals.pagination_changed = new Signal("Carries pagination info for UI");
+        this.signals.error = new Signal("Carries error messages");
     }
-    create_slot(datum) { /*//DOC
-        Create a new datum into the datasource.
-        Argument datum is an object with key-value pairs.
-        Emits signal data.
-        */
-        let res = this.dataCheck(this.datamodel_create, datum)
-        if (res.error != null) {
-            this.signals.error.emit(`Create: ${res.error}`)
-            return
-        }
-        let datum_ = res.datum
-        datum_.uuid = uuidv4()
-        this.data.push(datum_)
-        this.signals.data.emit(this.data)
-    }
+    
+    // *** CRUD SLOTS ***
+    
     read_slot() { /*//DOC
-        Tells datasource to re-read the data from the datasource and emit
-        the data signal.
+        Reads data from the dataSource and emits data signal.
+        Also emits pagination info if available.
         */
-        this.signals.data.emit(this.data);
-    }
-    update_slot(datum) { /*//DOC
-        Update an existing datum in the datasource.
-        Argument datum is an object with key-value pairs.  It must have a key named "uuid".
-        Emits signal error upon errors, signal data if the update was succesfull.
-        */
-        this.log(-1, "update_slot", datum)
-        if (!datum.hasOwnProperty('uuid')) {
-            this.log(0, "update_slot: incoming data missing uuid")
-            this.error.emit("Update: missing uuid")
-            return
-        }
-        let res = this.dataCheck(this.datamodel_update, datum)
-        if (res.error != null) {
-            this.signals.error.emit(`Update: ${res.error}`)
-            return
-        }
-        let datum_ = res.datum
-        let cc = 0
-        for (const old_datum of this.data) {
-            if (old_datum.uuid == datum_.uuid) {
-                // found the correct one!
-                this.data[cc] = datum_ // update
-                this.signals.data.emit(this.data)
-                this.log(-1, "update_slot: found uuid", old_datum.uuid)
-                return
-            }
-            cc += 1
-        }
-        this.signals.error.emit(`Update: could not find uuid "${datum_.uuid}"`)
-    }
-    delete_slot(uuid) { /*//DOC
-        Delete an existing datum from the datasource, corresponding to a uuid.
-        Emit signal error upon errors, signal data if the update was succesfull.
-        */
-        let i = -1
-        let cc = 0
-        // find list index with data element that matches uuid
-        this.data.forEach(
-            item => {
-                if (item.uuid == uuid) {
-                    i = cc;
-                }
-                cc += 1
-            }
-        )
-        if (i<0) {
-            this.log(0, "delete_slot: could not find uuid", uuid)
-            this.signals.error.emit(`Delete: could not find uuid "${uuid}"`)
-            return;
-        }
-        this.data.splice(i, 1)
-        this.signals.data.emit(this.data)
-    }
-    model_slot() { /*//DOC
-        (re)emits signals datamodel_create, datamodel_read and datamodel_update
-        */
-        this.signals.datamodel_create.emit(this.datamodel_create)
-        this.signals.datamodel_read.emit(this.datamodel_read)
-        this.signals.datamodel_update.emit(this.datamodel_update)
-    }
-    createState() {
-        /* datamodel is a dictionary with metadata of all data fields
-        key: the data key
-        value: a dictionary with keys "label", "help" and "check"
-        - label: a label to be used with forms
-        - help: a descriptive string about the data element
-        - check: a function that checks this data element
-        */
-        // You need to subclass this method
-        this.datamodel_create = { // C
-            name: {
-                label:  "First Name",
-                help :  "The first name of the person",
-                check:  this.checkStr.bind(this)
-            },
-            surname: {
-                label:  "Last Name",
-                help :  "The surname of the person",
-                check:  this.checkStr.bind(this)
-            },
-            email: {
-                label:  "Email",
-                help :  "the email",
-                check:  this.checkStr.bind(this)
-            },
-            age: {
-                label: "Age",
-                help : "Age of the person in years",
-                check: this.checkNumber.bind(this)
-            }
-        };
-
-        // datamodel for update operations .. could be different that
-        // datamodel_create
-        this.datamodel_read = this.datamodel_create // R
-        this.datamodel_update = this.datamodel_create // U
-
-        this.data = []
-        // In your test/mock datasource class, you can hard-code some initial mock data here, for example:
-        /*
-        key: data key
-        value: data element
+        this.log(-1, "read_slot called");
         
-        for example:
-
-        this.data = [
-            {
-                "uuid": "123456",
-                "name": "John",
-                "surname": "Doe",
-                "email": "john.doe@gmail.com",
-                "age": 51
-            },
-            {
-                "uuid": "654321",
-                "name": "Joanna",
-                "surname": "Doe",
-                "email": "joanna.doe@gmail.com",
-                "age": 18
-            }
-        ];
-    }
-    */
-    }
-    // here some functions for checking input values.
-    // you might want to subclass them in your custom datasource class
-    // the idea: the datasource class defines the check functions, based
-    // on what it accepts
-    checkStr(par) { /*//DOC
-        Check function. Checks that par is a string.
-        Returns (corrected) value, error message
-        If everything's ok, the error message is null
-        */
-        const str = String(par)
-        if (str.length < 1) {
-            return {value: null, error: "Empty"}
-        }
-        return {value: str, error: null}
-    }
-    checkNumber(par) { /*//DOC
-        Check function. Checks that par is a number.
-        Returns (corrected) value, error message
-        If everything's ok, the error message is null
-        */
-        const str = String(par)
-        if (str.length < 1) {
-            return {value: null, error: "Empty"}
-        }
-        const num = Number(str);
-        if (isNaN(num)) {
-            return {value: null, error: "Numeric value required"}
-        }
-        return {value: num, error: null}
-    }
-    checkInt(par) {
-        return this.checkNumber(par)
-    }
-    checkFloat(par) {
-        return this.checkNumber(par)
-    }
-    checkBool(par) { /*//DOC
-        Check function. Checks that par is a boolean or boolean-like value.
-        Accepts boolean, 'true'/'false' strings, and 1/0.
-        Returns (corrected) value, error message
-        If everything's ok, the error message is null
-        */
-        if (typeof par === 'boolean') {
-            return {value: par, error: null}
-        }
-        // Handle string representations of booleans
-        if (par === 'true' || par === 'false') {
-            return {value: par === 'true', error: null}
-        }
-        // Handle numeric 1/0
-        if (par === 1 || par === 0) {
-            return {value: Boolean(par), error: null}
-        }
-        return {value: null, error: "Not a boolean"}
-    }
-    checkBoolStrict(par) { /*//DOC
-        Check function. Checks that par is strictly a boolean.
-        Only accepts true boolean values.
-        Returns (corrected) value, error message
-        If everything's ok, the error message is null
-        */
-        if (typeof par === 'boolean') {
-            return {value: par, error: null}
-        }
-        return {value: null, error: "Not a boolean"}
-    }
-    createElement() { // this widget doesn't create any html elements
-    }
-
-    dataCheck(datamodel, datum) { /*//DOC
-        Given a datamodel, checks the datum against the datamodel
-
-        Returns:
-
-        {
-            datum: corrected/filtered datum,
-            error: error string or null of there was no error
-
-        }
-
-        If datum has keys not described by the datamodel, these
-        are silently omitted (but kept in the final datum)
-
-        */
-        /* note: in the following, we could also use sets
-        datamodel_keys = Set(Object.keys(datamodel))
-        datum_keys = Set(Object.keys(datum))
-        if (!equalSets(datamodel_keys, datum_keys)) {
-            // etc
-        }
-        */
-        this.log(-1, "dataCheck got", datum)
-        let required_keys = Object.keys(datamodel)
-        var tmp_datum = structuredClone(datum) // corrected datum
-        let datum_leftover_keys = Object.keys(datum)
-        for (const key of required_keys) {
-            this.log(-2, "dataCheck.key", key)
-            if (!datum.hasOwnProperty(key)) {
-                this.log(-1, "dataCheck missing key", key)
-                return {
-                    datum: null,
-                    error: `missing key ${key}`
-                }
-            }
-            // get datum value
-            let value=datum[key]
-            // checker function from datamodel
-            let check_func = datamodel[key].check
-            // apply check function
-            let res = check_func(value)
-            this.log(-2, "dataCheck.check", key, res.error, res.value)
-            if (res.error != null) {
-                return {
-                    datum: null,
-                    error: `error "${res.error}" with key ${key}`
-                }
-            }
-            tmp_datum[key] = res.value // corrected / cleaned up value
-            this.log(-2, "dataCheck.leftover", datum_leftover_keys)
-            let index = datum_leftover_keys.findIndex(
-                (element) => element == key
-            )
-            datum_leftover_keys.splice(index, 1)
-        } // required_keys
-        // what to do with extra keys not described by the datamodel?
-        /*
-        for (const key in datum_leftover_keys) {
-            // tmp_datum.delete[key] // delete..? NOPES!
-            // ..we want to keep the uuid etc. keys
-        }
-        */
-        return {
-            datum: tmp_datum,
-            error: null
+        // Handle both sync (DummyDataSource) and async (HTTPDataSource) cases
+        const result = this.dataSource.read();
+        
+        if (result && typeof result.then === 'function') {
+            // Async result (HTTPDataSource)
+            result.then((data) => {
+                this._handleReadResult(data);
+            }).catch((error) => {
+                this.log(0, "read_slot error:", error.message);
+                this.signals.error.emit(`Read failed: ${error.message}`);
+            });
+        } else {
+            // Sync result (DummyDataSource)
+            this._handleReadResult(result);
         }
     }
     
+    create_slot(datum) { /*//DOC
+        Creates a new datum in the dataSource.
+        :param datum: object with data fields
+        */
+        this.log(-1, "create_slot called", datum);
+        
+        const result = this.dataSource.create(datum);
+        
+        if (result && typeof result.then === 'function') {
+            // Async result (HTTPDataSource)
+            result.then((data) => {
+                this._handleCRUDResult(data, 'create');
+            }).catch((error) => {
+                this.log(0, "create_slot error:", error.message);
+                this.signals.error.emit(`Create failed: ${error.message}`);
+            });
+        } else {
+            // Sync result (DummyDataSource)
+            this._handleCRUDResult(result, 'create');
+        }
+    }
+    
+    update_slot(datum) { /*//DOC
+        Updates an existing datum in the dataSource.
+        :param datum: object with data fields including id
+        */
+        this.log(-1, "update_slot called", datum);
+        
+        const result = this.dataSource.update(datum);
+        
+        if (result && typeof result.then === 'function') {
+            // Async result (HTTPDataSource)
+            result.then((data) => {
+                this._handleCRUDResult(data, 'update');
+            }).catch((error) => {
+                this.log(0, "update_slot error:", error.message);
+                this.signals.error.emit(`Update failed: ${error.message}`);
+            });
+        } else {
+            // Sync result (DummyDataSource)
+            this._handleCRUDResult(result, 'update');
+        }
+    }
+    
+    delete_slot(id) { /*//DOC
+        Deletes a datum from the dataSource by id.
+        :param id: string id of the item to delete
+        */
+        this.log(-1, "delete_slot called", id);
+        
+        const result = this.dataSource.delete(id);
+        
+        if (result && typeof result.then === 'function') {
+            // Async result (HTTPDataSource)
+            result.then((data) => {
+                this._handleCRUDResult(data, 'delete');
+            }).catch((error) => {
+                this.log(0, "delete_slot error:", error.message);
+                this.signals.error.emit(`Delete failed: ${error.message}`);
+            });
+        } else {
+            // Sync result (DummyDataSource)
+            this._handleCRUDResult(result, 'delete');
+        }
+    }
+    
+    // *** OTHER SLOTS ***
+    
+    set_page_slot(pageInfo) { /*//DOC
+        Sets pagination info and re-reads data.
+        :param pageInfo: object with currentPage, pageSize, etc. or null to disable pagination
+        */
+        this.log(-1, "set_page_slot called", pageInfo);
+        
+        // Tell dataSource to update its page state
+        this.dataSource.setPage(pageInfo);
+        
+        // Re-read data with new page
+        this.read_slot();
+    }
+    
+    set_auth_slot(authInfo) { /*//DOC
+        Sets authentication info on the dataSource.
+        :param authInfo: object with token, refreshToken, etc.
+        */
+        this.log(-1, "set_auth_slot called", authInfo);
+        
+        if (this.dataSource.setAuth) {
+            this.dataSource.setAuth(authInfo);
+        } else {
+            this.log(0, "dataSource doesn't support authentication");
+        }
+    }
+    
+    model_slot() { /*//DOC
+        Emits all datamodel signals for downstream UI components.
+        Triggers emission of datamodel_create, datamodel_read, datamodel_update signals.
+        */
+        this.log(-1, "model_slot called");
+        
+        if (this.dataSource.dataModel) {
+            this.signals.datamodel_create.emit(this.dataSource.dataModel.create);
+            this.signals.datamodel_read.emit(this.dataSource.dataModel.read);  
+            this.signals.datamodel_update.emit(this.dataSource.dataModel.update);
+        } else {
+            this.log(0, "dataSource doesn't have dataModel");
+        }
+    }
+    
+    // *** INTERNAL METHODS ***
+    
+    _handleReadResult(data) {
+        this.log(-1, "_handleReadResult", typeof data, data);
+        
+        // Check if result is an error string
+        if (typeof data === 'string') {
+            this.signals.error.emit(data);
+            return;
+        }
+        
+        // Emit pagination info first if available
+        if (this.dataSource.paginationStrategy) {
+            const paginationInfo = this.dataSource.paginationStrategy.getPaginationInfo();
+            this.log(-1, "emitting pagination info", paginationInfo);
+            this.signals.pagination_changed.emit(paginationInfo);
+        }
+        
+        // Emit the data
+        this.signals.data.emit(data);
+    }
+    
+    _handleCRUDResult(result, operation) {
+        this.log(-1, `_handleCRUDResult ${operation}`, typeof result, result);
+        
+        // Check if result is an error string
+        if (typeof result === 'string') {
+            this.signals.error.emit(`${operation}: ${result}`);
+            return;
+        }
+        
+        // Success - re-read data to refresh UI
+        this.read_slot();
+    }
+    
+    createState() {
+        if (this.element == null) {
+            return;
+        }
+        // No state to initialize - this widget doesn't create UI elements
+        // All state is managed by the dataSource
+    }
+    
+    createElement() {
+        // This widget doesn't create any HTML elements
+        // It just coordinates data operations via signals
+        this.element = document.getElementById(this.id);
+        if (this.element == null) {
+            // For a non-UI widget, we might not even need an element
+            // But we'll follow the pattern and log if element doesn't exist
+            this.log(-1, "no element found with id", this.id, "- this is normal for DataSourceWidget");
+        }
+    }
+    
+    // *** PUBLIC API METHODS ***
+    
+    setDataSource(dataSource) { /*//DOC
+        Sets a new dataSource for this widget.
+        :param dataSource: DummyDataSource, HTTPDataSource, etc.
+        */
+        this.dataSource = dataSource;
+        this.log(-1, "dataSource changed");
+    }
+    
+    getDataSource() { /*//DOC
+        Returns the current dataSource.
+        */
+        return this.dataSource;
+    }
+
 } // DataSourceWidget
 
-export { DataSourceWidget }
+export { DataSourceWidget };

@@ -1,127 +1,375 @@
-<!DOCTYPE html>
+<!--
+DataSourceWidget Test HTML
+Tests the DataSourceWidget with both DummyDataSource and HTTPDataSource
+-->
+<!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <title>DataSourceWidget Example</title>
-        <link
-            href="../bootstrap-5.2.3-dist/css/bootstrap.min.css"
-            rel="stylesheet"
-        />
-    </head>
-    <body>
-        <p id="dump"></p>
+<head>
+<meta charset="utf-8">
+<title>DataSourceWidget Test</title>
+<style>
+    body { font-family: monospace; margin: 20px; }
+    button { margin: 5px; padding: 5px 10px; }
+    .section { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+    .signal-log { background: #f0f0f0; padding: 10px; white-space: pre-wrap; height: 150px; overflow-y: scroll; }
+    .controls { margin-bottom: 10px; }
+</style>
+</head>
+<body>
 
-        <button id="create-button">Create</button>
-        <button id="create-button-na">Create erroneous</button>
-        <button id="update-button">Update</button>
-        <button id="update-button-na">Update non-existing</button>
-        <button id="delete-button">Delete</button>
-        <button id="delete-button-na">Delete non-existing</button>
-    </body>
-    <script src="../bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
+<h1>DataSourceWidget Test</h1>
 
-    <script type="module">
+<!-- Signal monitoring displays -->
+<div class="section">
+    <h3>Signal Monitor</h3>
+    <div class="controls">
+        <button onclick="clearSignalLog()">Clear Signal Log</button>
+    </div>
+    <div id="signal-log" class="signal-log"></div>
+</div>
 
-        // define mock data:
-        var data = [
-            {
-                "name": "John",
-                "surname": "Doe",
-                "email": "john.doe@gmail.com",
-                "age": 51
-            },
-            {
-                "name": "Joanna",
-                "surname": "Doe",
-                "email": "joanna.doe@gmail.com",
-                "age": 18
-            }
-        ];
+<!-- DataSource switching -->
+<div class="section">
+    <h3>DataSource Type</h3>
+    <button onclick="useDummyDataSource()">Use DummyDataSource</button>
+    <button onclick="useHTTPDataSource()">Use HTTPDataSource (with mock)</button>
+    <div id="datasource-status">Current: None</div>
+</div>
 
-        import { DummyWidget, DumpWidget, uuidv4 } from './widget.js';
-        import { DataSourceWidget } from './datasourcewidget.js';
-        var dummy_widget = new DummyWidget();
-        var dump_widget = new DumpWidget("dump")
-        var widget = new DataSourceWidget();
+<!-- CRUD Operations -->
+<div class="section">
+    <h3>CRUD Operations</h3>
+    <button onclick="testRead()">READ</button>
+    <button onclick="testCreate()">CREATE (random data)</button>
+    <button onclick="testUpdate()">UPDATE (first item)</button>
+    <button onclick="testDelete()">DELETE (first item)</button>
+</div>
 
-        widget.setLogLevel(-1); // debugging
+<!-- Pagination Controls -->
+<div class="section">
+    <h3>Pagination</h3>
+    <button onclick="testSetPage(1, 3)">Page 1, Size 3</button>
+    <button onclick="testSetPage(2, 3)">Page 2, Size 3</button>
+    <button onclick="testSetPage(3, 3)">Page 3, Size 3</button>
+    <button onclick="testSetPage(null)">Disable Pagination</button>
+</div>
 
-        let create_button = document.getElementById("create-button");
-        let create_button_na = document.getElementById("create-button-na");
-        let update_button = document.getElementById("update-button");
-        let update_button_na = document.getElementById("update-button-na");
-        let delete_button = document.getElementById("delete-button");
-        let delete_button_na = document.getElementById("delete-button-na");
+<!-- Auth Testing (for HTTP) -->
+<div class="section">
+    <h3>Authentication (HTTPDataSource only)</h3>
+    <button onclick="testSetAuth('valid-token')">Set Valid Token</button>
+    <button onclick="testSetAuth('invalid-token')">Set Invalid Token</button>
+    <button onclick="testSetAuth(null)">Clear Token</button>
+</div>
 
-        // connect signals
-        widget.signals.data.connect( (datums) =>
-            dump_widget.slot(datums)
-        );
-        widget.signals.datamodel_create.connect( (datamodel) =>
-            dump_widget.slot(datamodel)
-        );
-        widget.signals.datamodel_update.connect( (datamodel) =>
-            dump_widget.slot(datamodel)
-        );
-        widget.signals.error.connect( (message) => alert(message)
-        );
+<!-- Model Testing -->
+<div class="section">
+    <h3>DataModel</h3>
+    <button onclick="testEmitModels()">Emit DataModel Signals</button>
+</div>
 
-        // send initial data to DataSource
-        data.forEach( datum => {
-            widget.create_slot(datum)
-        })
+<!-- Automated Tests -->
+<div class="section">
+    <h3>Automated Tests</h3>
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="runDummyTests()">Test DummyDataSource Only</button>
+    <button onclick="runHTTPTests()">Test HTTPDataSource Only</button>
+</div>
 
-        create_button.onclick = () => {
-            widget.create_slot(
-                {
-                "name": "John",
-                "surname": "Doe",
-                "email": "john.doe@gmail.com",
-                "age": 51
-                }
-            )
-        };
-        create_button_na.onclick = () => {
-            widget.create_slot(
-                {
-                "name": "John",
-                "surname": "Doe",
-                "email": "john.doe@gmail.com",
-                "age": "not a number indeed"
-                }
-            )
-        };
-        update_button.onclick = () => {
-            let uuid = widget.data[0]["uuid"] // not part of the API & totally illegal - only used for testing
-            widget.update_slot(
-                {
-                "uuid": uuid,
-                "name": "John Updated",
-                "surname": "Doe Updated",
-                "email": "john.doe@updated_gmail.com",
-                "age": 59
-                }
-            )
-        };
-        update_button_na.onclick = () => {
-            widget.update_slot(
-                {
-                "uuid": "non-existent-uuid",
-                "name": "John Updated",
-                "surname": "Doe Updated",
-                "email": "john.doe@updated_gmail.com",
-                "age": 59
-                }
-            )
-        };
-        delete_button.onclick = () => {
-            let uuid = widget.data[0]["uuid"]
-            widget.delete_slot(uuid)
-        };
-        delete_button_na.onclick = () => {
-            widget.delete_slot("non-existent-uuid")
-        };
+<!-- Hidden div for DataSourceWidget (it doesn't create UI) -->
+<div id="datasource-widget" style="display: none;"></div>
 
-        window.genDocs = ["widget"];
-    </script>
+</body>
+
+<script type="module">
+import { DataSourceWidget } from './datasourcewidget.js';
+import { DummyDataSource } from './datasource.js';
+import { HTTPDataSource } from './httpdatasource.js';
+import { AuthModel } from './authmodel.js';
+import { QueryParamPagination } from './pagination.js';
+import { setupMockServer } from './mockserver.js';
+
+// Global variables
+let dataSourceWidget = null;
+let mockServer = null;
+
+// Signal logging
+function logSignal(signalName, data) {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = `[${timestamp}] SIGNAL ${signalName}: ${JSON.stringify(data)}\n`;
+    const logElement = document.getElementById('signal-log');
+    logElement.textContent += logEntry;
+    logElement.scrollTop = logElement.scrollHeight;
+}
+
+window.clearSignalLog = function() {
+    document.getElementById('signal-log').textContent = '';
+};
+
+// DataSource setup functions
+window.useDummyDataSource = function() {
+    const dummyDS = new DummyDataSource();
+    
+    dataSourceWidget = new DataSourceWidget('datasource-widget', dummyDS);
+    dataSourceWidget.setLogLevel(-1); // Enable debug logging
+    
+    // Connect all signals to logging
+    connectSignalsToLogger(dataSourceWidget);
+    
+    document.getElementById('datasource-status').textContent = 'Current: DummyDataSource';
+    logSignal('SETUP', 'DummyDataSource created and connected');
+};
+
+window.useHTTPDataSource = function() {
+    // Setup mock server
+    if (mockServer) mockServer.restore();
+    mockServer = setupMockServer();
+    
+    // Create HTTP data source with auth and pagination
+    const authModel = new AuthModel();
+    const paginationStrategy = new QueryParamPagination();
+    
+    const httpDS = new HTTPDataSource()
+        .setBaseUrl('https://mock-api.example.com')
+        .setAuthModel(authModel)
+        .setPaginationStrategy(paginationStrategy);
+    
+    // Set initial valid token
+    authModel.set({ token: 'valid-token' });
+    
+    dataSourceWidget = new DataSourceWidget('datasource-widget', httpDS);
+    dataSourceWidget.setLogLevel(-1); // Enable debug logging
+    
+    // Connect all signals to logging
+    connectSignalsToLogger(dataSourceWidget);
+    
+    document.getElementById('datasource-status').textContent = 'Current: HTTPDataSource (with mock server)';
+    logSignal('SETUP', 'HTTPDataSource created with mock server');
+};
+
+function connectSignalsToLogger(widget) {
+    widget.signals.data.connect((data) => logSignal('data', `${Array.isArray(data) ? data.length : 'error'} items`));
+    widget.signals.datamodel_create.connect((model) => logSignal('datamodel_create', 'emitted'));
+    widget.signals.datamodel_read.connect((model) => logSignal('datamodel_read', 'emitted'));
+    widget.signals.datamodel_update.connect((model) => logSignal('datamodel_update', 'emitted'));
+    widget.signals.pagination_changed.connect((info) => logSignal('pagination_changed', info));
+    widget.signals.error.connect((error) => logSignal('error', error));
+}
+
+// Test functions
+window.testRead = function() {
+    if (!dataSourceWidget) {
+        alert('Please select a DataSource first');
+        return;
+    }
+    logSignal('TEST', 'Calling read_slot()');
+    dataSourceWidget.read_slot();
+};
+
+window.testCreate = function() {
+    if (!dataSourceWidget) {
+        alert('Please select a DataSource first');
+        return;
+    }
+    
+    const randomNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'];
+    const randomSurnames = ['Smith', 'Johnson', 'Brown', 'Davis', 'Wilson'];
+    
+    const datum = {
+        name: randomNames[Math.floor(Math.random() * randomNames.length)],
+        surname: randomSurnames[Math.floor(Math.random() * randomSurnames.length)],
+        email: `user${Date.now()}@example.com`,
+        age: Math.floor(Math.random() * 50) + 18
+    };
+    
+    logSignal('TEST', `Calling create_slot(${JSON.stringify(datum)})`);
+    dataSourceWidget.create_slot(datum);
+};
+
+window.testUpdate = function() {
+    if (!dataSourceWidget) {
+        alert('Please select a DataSource first');
+        return;
+    }
+    
+    // Get first item from current data source
+    let firstItem = null;
+    if (dataSourceWidget.dataSource instanceof DummyDataSource) {
+        const data = dataSourceWidget.dataSource.data;
+        firstItem = data.length > 0 ? data[0] : null;
+    } else {
+        // For HTTP, we'll use mock server's data
+        const data = mockServer ? mockServer.getData() : [];
+        firstItem = data.length > 0 ? data[0] : null;
+    }
+    
+    if (!firstItem) {
+        logSignal('TEST', 'No data to update');
+        return;
+    }
+    
+    const updatedItem = {
+        ...firstItem,
+        name: 'UPDATED_' + firstItem.name,
+        age: (firstItem.age || 25) + 1
+    };
+    
+    logSignal('TEST', `Calling update_slot(${JSON.stringify(updatedItem)})`);
+    dataSourceWidget.update_slot(updatedItem);
+};
+
+window.testDelete = function() {
+    if (!dataSourceWidget) {
+        alert('Please select a DataSource first');
+        return;
+    }
+    
+    // Get first item ID from current data source
+    let firstId = null;
+    if (dataSourceWidget.dataSource instanceof DummyDataSource) {
+        const data = dataSourceWidget.dataSource.data;
+        firstId = data.length > 0 ? data[0].id : null;
+    } else {
+        // For HTTP, we'll use mock server's data
+        const data = mockServer ? mockServer.getData() : [];
+        firstId = data.length > 0 ? data[0].id : null;
+    }
+    
+    if (!firstId) {
+        logSignal('TEST', 'No data to delete');
+        return;
+    }
+    
+    logSignal('TEST', `Calling delete_slot(${firstId})`);
+    dataSourceWidget.delete_slot(firstId);
+};
+
+window.testSetPage = function(page, size) {
+    if (!dataSourceWidget) {
+        alert('Please select a DataSource first');
+        return;
+    }
+    
+    let pageInfo = null;
+    if (page !== null) {
+        pageInfo = { currentPage: page, pageSize: size };
+    }
+    
+    logSignal('TEST', `Calling set_page_slot(${JSON.stringify(pageInfo)})`);
+    dataSourceWidget.set_page_slot(pageInfo);
+};
+
+window.testSetAuth = function(token) {
+    if (!dataSourceWidget) {
+        alert('Please select a DataSource first');
+        return;
+    }
+    
+    const authInfo = token ? { token: token } : { token: null };
+    logSignal('TEST', `Calling set_auth_slot(${JSON.stringify(authInfo)})`);
+    dataSourceWidget.set_auth_slot(authInfo);
+};
+
+window.testEmitModels = function() {
+    if (!dataSourceWidget) {
+        alert('Please select a DataSource first');
+        return;
+    }
+    
+    logSignal('TEST', 'Calling model_slot()');
+    dataSourceWidget.model_slot();
+};
+
+// Automated test suites
+window.runAllTests = async function() {
+    clearSignalLog();
+    logSignal('AUTO-TEST', 'Starting comprehensive test suite...');
+    
+    await runDummyTests();
+    await delay(1000);
+    await runHTTPTests();
+    
+    logSignal('AUTO-TEST', 'All tests completed');
+};
+
+window.runDummyTests = async function() {
+    logSignal('AUTO-TEST', 'Testing DummyDataSource...');
+    
+    useDummyDataSource();
+    await delay(500);
+    
+    testRead();
+    await delay(500);
+    
+    testCreate();
+    await delay(500);
+    
+    testUpdate();
+    await delay(500);
+    
+    testSetPage(1, 2);
+    await delay(500);
+    
+    testSetPage(2, 2);
+    await delay(500);
+    
+    testDelete();
+    await delay(500);
+    
+    testSetPage(null);
+    await delay(500);
+    
+    testEmitModels();
+    await delay(500);
+    
+    logSignal('AUTO-TEST', 'DummyDataSource tests completed');
+};
+
+window.runHTTPTests = async function() {
+    logSignal('AUTO-TEST', 'Testing HTTPDataSource...');
+    
+    useHTTPDataSource();
+    await delay(500);
+    
+    testRead();
+    await delay(500);
+    
+    testSetAuth('valid-token');
+    await delay(500);
+    
+    testCreate();
+    await delay(500);
+    
+    testUpdate();
+    await delay(500);
+    
+    testSetPage(1, 2);
+    await delay(500);
+    
+    testSetAuth('invalid-token');
+    await delay(500);
+    
+    testRead(); // Should fail with auth error
+    await delay(500);
+    
+    testSetAuth('valid-token');
+    await delay(500);
+    
+    testDelete();
+    await delay(500);
+    
+    testEmitModels();
+    await delay(500);
+    
+    logSignal('AUTO-TEST', 'HTTPDataSource tests completed');
+};
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Initialize with DummyDataSource
+useDummyDataSource();
+
+</script>
 </html>
