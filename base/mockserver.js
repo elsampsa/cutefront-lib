@@ -1,16 +1,6 @@
 // mockserver.js - Simple fetch override for testing HTTP data sources
 
-let mockData = [
-    { id: "1", name: "Alice", surname: "Johnson", email: "alice@example.com", age: 28 },
-    { id: "2", name: "Bob", surname: "Smith", email: "bob@example.com", age: 32 },
-    { id: "3", name: "Charlie", surname: "Brown", email: "charlie@example.com", age: 25 },
-    { id: "4", name: "Diana", surname: "Wilson", email: "diana@example.com", age: 30 },
-    { id: "5", name: "Eve", surname: "Davis", email: "eve@example.com", age: 27 },
-    { id: "6", name: "Frank", surname: "Miller", email: "frank@example.com", age: 35 },
-    { id: "7", name: "Grace", surname: "Garcia", email: "grace@example.com", age: 29 },
-    { id: "8", name: "Henry", surname: "Taylor", email: "henry@example.com", age: 31 }
-];
-
+let mockData = [];
 let authToken = null;
 let networkDelay = 100; // Simulate network delay
 
@@ -72,9 +62,6 @@ export function setupMockServer(config = {}) {
         },
         resetData: () => {
             mockData = [
-                { id: "1", name: "Alice", surname: "Johnson", email: "alice@example.com", age: 28 },
-                { id: "2", name: "Bob", surname: "Smith", email: "bob@example.com", age: 32 },
-                { id: "3", name: "Charlie", surname: "Brown", email: "charlie@example.com", age: 25 }
             ];
         },
         getData: () => [...mockData],

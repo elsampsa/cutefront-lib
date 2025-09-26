@@ -82,6 +82,7 @@ Tests the DataSourceWidget with both DummyDataSource and HTTPDataSource
 </body>
 
 <script type="module">
+import { DataModel } from './datamodel.js';
 import { DataSourceWidget } from './datasourcewidget.js';
 import { DummyDataSource } from './datasource.js';
 import { HTTPDataSource } from './httpdatasource.js';
@@ -92,6 +93,49 @@ import { setupMockServer } from './mockserver.js';
 // Global variables
 let dataSourceWidget = null;
 let mockServer = null;
+
+class MyDataModel extends DataModel {
+    constructor() {
+        super();
+        // Datamodels for CRU operations
+        this.create = {
+            name: {
+                label: "First Name",
+                help: "The first name of the person",
+                check: this.checkStr
+            },
+            surname: {
+                label: "Last Name", 
+                help: "The surname of the person",
+                check: this.checkStr
+            },
+            email: {
+                label: "Email",
+                help: "The email address",
+                check: this.checkStr
+            },
+            age: {
+                label: "Age",
+                help: "Age of the person in years",
+                check: this.checkNumber
+            }
+        };
+        this.read = this.create;
+        this.update = this.create;
+    }
+    
+    getMockData(n) { // example mock data
+        var lis = []
+        for (var i = 0; i < n; i++) {
+            lis.push(
+                { id: `${i}`, name: `John${i}`, surname: `Doe${i}`, email: `john${i}@example.com`, age: 28+i }
+            )
+        }
+        return lis;
+    }
+}
+
+let dataModel = new MyDataModel();
 
 // Signal logging
 function logSignal(signalName, data) {
@@ -108,8 +152,8 @@ window.clearSignalLog = function() {
 
 // DataSource setup functions
 window.useDummyDataSource = function() {
-    const dummyDS = new DummyDataSource();
-    
+    const dummyDS = new DummyDataSource()
+                        .setDataModel(dataModel).setUUIDKey('id');
     dataSourceWidget = new DataSourceWidget('datasource-widget', dummyDS);
     dataSourceWidget.setLogLevel(-1); // Enable debug logging
     
@@ -123,7 +167,7 @@ window.useDummyDataSource = function() {
 window.useHTTPDataSource = function() {
     // Setup mock server
     if (mockServer) mockServer.restore();
-    mockServer = setupMockServer();
+    mockServer = setupMockServer({data: dataModel.getMockData(15)})
     
     // Create HTTP data source with auth and pagination
     const authModel = new AuthModel();
@@ -132,7 +176,8 @@ window.useHTTPDataSource = function() {
     const httpDS = new HTTPDataSource()
         .setBaseUrl('https://mock-api.example.com')
         .setAuthModel(authModel)
-        .setPaginationStrategy(paginationStrategy);
+        .setPaginationStrategy(paginationStrategy)
+        .setDataModel(dataModel).setUUIDKey('id');
     
     // Set initial valid token
     authModel.set({ token: 'valid-token' });
@@ -171,17 +216,7 @@ window.testCreate = function() {
         alert('Please select a DataSource first');
         return;
     }
-    
-    const randomNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'];
-    const randomSurnames = ['Smith', 'Johnson', 'Brown', 'Davis', 'Wilson'];
-    
-    const datum = {
-        name: randomNames[Math.floor(Math.random() * randomNames.length)],
-        surname: randomSurnames[Math.floor(Math.random() * randomSurnames.length)],
-        email: `user${Date.now()}@example.com`,
-        age: Math.floor(Math.random() * 50) + 18
-    };
-    
+    let datum = dataModel.getMockData(1)[0];
     logSignal('TEST', `Calling create_slot(${JSON.stringify(datum)})`);
     dataSourceWidget.create_slot(datum);
 };

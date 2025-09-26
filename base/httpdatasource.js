@@ -111,7 +111,8 @@ class HTTPDataSource extends DataSource {
     }
     
     async update(datum) {
-        const endpoint = `${this.endpoints.update}/${datum.id}`;
+        const id_key = this.uuid_key;
+        const endpoint = `${this.endpoints.update}/${datum[id_key]}`;
         return await this.makeRequest(endpoint, {
             method: 'PUT',
             body: JSON.stringify(datum)

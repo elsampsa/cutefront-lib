@@ -165,13 +165,18 @@ DataSourceWidget:
         NOTE: datasource doesn't do any error checking.  This is done (a) interactively in the UI by the downstream widgets
         and also (b) by the DataSource itself .. if it fails then create_slot etc. emit error signals
     components:
-        dataSource: DataSource object (composition).  Possible classes DummyDataSource, HTTPDataSource, etc.
+        dataSource:
+          components:
+            authModel:
+            paginationStrategy:
+            dataModel:
+            
     state: # we'd like to avoid any state caching here
     signals:
         data: carries current data (paginated or all)
         datamodel_create: 'carries dataModel.create.  Can be connected to donwstream widgets: forms etc. so that they can perform their own checking'
-        datamodel_read: carries dataModel.read
-        datamodel_update: carries dataModel.update
+        datamodel_read: carries dataSource.dataModel.read
+        datamodel_update: carries dataSource.dataModel.update
         pagination_changed: carries pagination info for UI
         error: carries error messages
     
@@ -224,13 +229,22 @@ dummyDataSourceWidget:
     class: DummyDataSourceWidget
     components:
         dataSource: DummyDataSource()
+        dataModel: # TODO
 
 # HTTP without pagination  
 httpDataSourceWidget:
     class: HTTPDataSourceWidget
-    dataSource: HTTPDataSource()
-        .setBaseUrl("https://api.example.com")
-        .setAuthModel(AuthModel().setToken("abc123"))
+    components:
+      dataSource: 
+          instance: | 
+            HTTPDataSource() 
+            .setBaseUrl("https://api.example.com")
+            .setAuthModel(AuthModel().setToken("abc123"))
+            .setDataModel(CustomDataModel())
+          components:
+            authModel:
+            paginationStrategy:
+            dataModel:
 
 # HTTP with pagination
 paginatedDataSourceHttpWidget:
@@ -239,7 +253,8 @@ paginatedDataSourceHttpWidget:
         .setBaseUrl("https://api.example.com")  
         .setAuthModel(AuthModel().setToken("abc123"))
         .setPaginationStrategy(QueryParamPagination())
-        
+    dataModel: # TODO
+
 # Different pagination styles possible examples:
 restApiWidget:
     paginationStrategy: QueryParamPagination()  # ?page=2&pageSize=10

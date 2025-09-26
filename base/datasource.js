@@ -2,8 +2,9 @@ import { DataModel } from "./datamodel.js";
 
 class DataSource {
     constructor() {
-        this.dataModel = new DataModel();
+        this.dataModel = null;
         this.paginationInfo = null;
+        this.uuid_key = 'uuid'; // what column is used as the unique identifier
     }
 
     // Abstract methods - subclasses must implement
@@ -26,104 +27,62 @@ class DataSource {
     setPage(paginationInfo) {
         throw new Error("setPage() must be implemented by subclass");
     }
+
+    setDataModel(dataModel) {
+        this.dataModel = dataModel;
+        return this;
+    }
+
+    setUUIDKey(key) {
+        this.uuid_key = key;
+        return this;
+    }
+
+    getUUIDKey() {
+        return this.uuid_key;
+    }
 }
 
-class DummyDataSource extends DataSource {
-    constructor(initialData = []) {
+class Dummy0DataSource extends DataSource { /*//DOC
+    A datasource that returns a single json object
+    */
+    constructor() {
         super();
-        this.data = [...initialData];
+        this.data = {}
+    }
+
+    setDataModel(dataModel) {
+        this.dataModel = dataModel;
+        this.data = this.dataModel.getMockData();
+        return this;
+    }
+
+    // no create or detele methods, just update and read
+    read() {
+        return this.data;
+    }
+
+    update(datum) {
+        this.data = datum;
+    }
+}
+
+
+class DummyDataSource extends DataSource { /*//DOC
+    A datasource for list like data: each element of the list is a json object
+    Features pagination
+    */
+    constructor() {
+        super();
+        this.data = [];
         this.currentPage = 1;
         this.pageSize = 10;
+    }
 
-        // Add some default test data if none provided
-        if (this.data.length === 0) {
-            this.data = [
-                {
-                    id: "1",
-                    name: "John",
-                    surname: "Doe",
-                    email: "john@example.com",
-                    age: 30,
-                },
-                {
-                    id: "2",
-                    name: "Jane",
-                    surname: "Smith",
-                    email: "jane@example.com",
-                    age: 25,
-                },
-                {
-                    id: "3",
-                    name: "Bob",
-                    surname: "Johnson",
-                    email: "bob@example.com",
-                    age: 35,
-                },
-                {
-                    id: "4",
-                    name: "Alice",
-                    surname: "Wilson",
-                    email: "alice@example.com",
-                    age: 28,
-                },
-                {
-                    id: "5",
-                    name: "Charlie",
-                    surname: "Brown",
-                    email: "charlie@example.com",
-                    age: 42,
-                },
-                {
-                    id: "6",
-                    name: "Diana",
-                    surname: "Davis",
-                    email: "diana@example.com",
-                    age: 31,
-                },
-                {
-                    id: "7",
-                    name: "Eve",
-                    surname: "Miller",
-                    email: "eve@example.com",
-                    age: 29,
-                },
-                {
-                    id: "8",
-                    name: "Frank",
-                    surname: "Garcia",
-                    email: "frank@example.com",
-                    age: 38,
-                },
-                {
-                    id: "9",
-                    name: "Grace",
-                    surname: "Lee",
-                    email: "grace@example.com",
-                    age: 26,
-                },
-                {
-                    id: "10",
-                    name: "Henry",
-                    surname: "Taylor",
-                    email: "henry@example.com",
-                    age: 33,
-                },
-                {
-                    id: "11",
-                    name: "Iris",
-                    surname: "Anderson",
-                    email: "iris@example.com",
-                    age: 27,
-                },
-                {
-                    id: "12",
-                    name: "Jack",
-                    surname: "Thomas",
-                    email: "jack@example.com",
-                    age: 36,
-                },
-            ];
-        }
+    setDataModel(dataModel) {
+        this.dataModel = dataModel;
+        this.data = this.dataModel.getMockData(15);
+        return this;
     }
 
     read() {
@@ -143,14 +102,16 @@ class DummyDataSource extends DataSource {
             return "Invalid datum provided";
         }
 
+        const id = this.uuid_key
+
         // Generate ID
         const maxId = Math.max(
             0,
-            ...this.data.map((item) => parseInt(item.id) || 0)
+            ...this.data.map((item) => parseInt(item[id]) || 0)
         );
         const newDatum = {
             ...datum,
-            id: String(maxId + 1),
+            [id]: String(maxId + 1),
         };
 
         this.data.push(newDatum);
@@ -158,28 +119,35 @@ class DummyDataSource extends DataSource {
     }
 
     update(datum) {
-        if (!datum || !datum.id) {
-            return "Missing id for update";
+        const id_key = this.uuid_key;
+        
+        if (!datum || !datum[id_key]) {
+            return `Missing ${id_key} for update`;
         }
-
-        const index = this.data.findIndex((item) => item.id === datum.id);
+        
+        const index = this.data.findIndex((item) => item[id_key] === datum[id_key]);
         if (index === -1) {
-            return `Item with id ${datum.id} not found`;
+            return `Item with ${id_key} ${datum[id_key]} not found`;
         }
-
+        
         this.data[index] = { ...this.data[index], ...datum };
         return this.data[index];
     }
 
     delete(id) {
-        const index = this.data.findIndex((item) => item.id === id);
-        if (index === -1) {
-            return `Item with id ${id} not found`;
-        }
+        const id_key = this.uuid_key;
 
+        
+
+        const index = this.data.findIndex((item) => item[id_key] === id);
+        if (index === -1) {
+            return `Item with ${id_key} ${id} not found`;
+        }
+        
         const deleted = this.data.splice(index, 1)[0];
         return deleted;
     }
+
 
     setPage(paginationInfo) {
         if (paginationInfo) {
@@ -197,4 +165,4 @@ class DummyDataSource extends DataSource {
     }
 }
 
-export { DataSource, DummyDataSource };
+export { DataSource, Dummy0DataSource, DummyDataSource };

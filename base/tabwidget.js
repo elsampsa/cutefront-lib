@@ -48,7 +48,7 @@ class TabWidget extends Group {
         });
  
         Access widgets with:
-        this.items.homeWidget
+        this.widgets.homeWidget
         */
         // Validate entries
         Object.entries(widget_dict).forEach(([key, pair]) => {
@@ -63,7 +63,7 @@ class TabWidget extends Group {
         });
  
         // Store widget references by key
-        this.items = Object.entries(widget_dict).reduce((acc, [key, pair]) => {
+        this.widgets = Object.entries(widget_dict).reduce((acc, [key, pair]) => {
             acc[key] = pair[0];
             return acc;
         }, {});
@@ -88,8 +88,7 @@ class TabWidget extends Group {
             tabButton.className = 'nav-item';
             tabButton.innerHTML = `
                 <a class="nav-link ${isActive ? 'active' : ''}" 
-                   id="tab-${index}" 
-                   data-bs-toggle="tab" 
+                   id="tab-${index}"
                    href="#content-${index}" 
                    role="tab"
                    aria-controls="content-${index}" 
@@ -97,6 +96,7 @@ class TabWidget extends Group {
                     ${tab.name}
                 </a>
             `;
+            // data-bs-toggle="tab" -> bootstrap crassssh! & we don't need it anyway since were handling the tab switching outselves.
             this.tabList.appendChild(tabButton);
             
             // Create tab content

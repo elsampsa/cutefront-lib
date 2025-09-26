@@ -149,8 +149,10 @@ class Widget { /* The Base class implementation for CuteFront Widgets
         this.loglevel = 0; // 0 = normal.  smaller: useless, bigger: usefull
         // API exposure:
         this.signals = new Object(); // i.e. json
-        this.widgets = new Object(); // subwidgets of this widget the API user may access directly
+        this.widgets = new Object(); // subwidgets of this widget the API user can access directly
+        this.components = new Object(); // subwidgets/other objects of this widget that the API user should not access directly
         this.createSignals();
+        // this._enhanceSlotMethods(); // add class info to the _slot methods // TODO: does this work or not?
     }
     createElement() { // set the html element corresponding to this component
         this.err("you must subclass createElement");
@@ -368,6 +370,16 @@ class Widget { /* The Base class implementation for CuteFront Widgets
         return this.element.querySelector(`#${par}`); // WARNING: this doesn't work in action, why!?
     }
 
+    _enhanceSlotMethods() {
+        // add property 'method_addr' to all _slot methods
+        const methodNames = Object.getOwnPropertyNames(Object.getPrototypeOf(this));
+        methodNames.forEach(methodName => {
+        if (methodName.endsWith('_slot') && typeof this[methodName] === 'function') {
+            this[methodName]["method_addr"] = `${this.constructor.name}.${methodName}`;
+        }
+        });
+    }
+
     /* the API doc generator */
     getAPITree() {
         const api = {
@@ -378,6 +390,7 @@ class Widget { /* The Base class implementation for CuteFront Widgets
             slots: {},
             signals: {},
             widgets: {},
+            components: {},
             methods: {}
             */
         };
@@ -422,16 +435,37 @@ class Widget { /* The Base class implementation for CuteFront Widgets
             api["signals"] = Object();
             for (const [key, signal] of Object.entries(this.signals)) {
                 api.signals[key] = null; // a signal but not necessarily with a docstring
-                const docs = signal.getDocString();
-                if (docs) {
-                    api.signals[key] = Object();
-                    api.signals[key]["about"] = docs
+                if (signal) {
+                    const docs = signal.getDocString();
+                    if (docs) {
+                        api.signals[key] = Object();
+                        api.signals[key]["about"] = docs
+                        /*
+                        if (signal.callbacks.length > 0) {
+                            api.signals[key]["connect"] = [];
+                            signal.callbacks.forEach(cb => {
+                                if (cb.method_addr) {
+                                    //console.log("cb>", cb)
+                                    //console.log("cb.method_addr>", cb.method_addr);
+                                    api.signals[key]["connections"].push(cb.method_addr);
+                                }
+                            })
+                        }
+                        */
+                    } // signal not null
+                }
+                else {
+                    api.signals[key] = "ERROR"
                 }
             }
         }
 
         if (Object.keys(this.widgets).length > 0) {
             api["widgets"] = subWidgetRecurse(this.widgets);
+        }
+
+        if (Object.keys(this.components).length > 0) {
+            api["components"] = subWidgetRecurse(this.components);
         }
         
         return api;

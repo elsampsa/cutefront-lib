@@ -1,6 +1,6 @@
 class DataModel {
     constructor() {
-        // Default datamodel - can be overridden
+        // Default datamodel - must be overridden
         this.create = {
             name: {
                 label: "First Name",
@@ -28,6 +28,10 @@ class DataModel {
         this.update = this.create;
     }
     
+    getMockData(n) { // returns a list of mock data of n elements, a single element or null
+        return [];
+    }
+
     checkStr(par) {
         const str = String(par);
         if (str.length < 1) {
@@ -46,6 +50,40 @@ class DataModel {
             return { value: null, error: "Numeric value required" };
         }
         return { value: num, error: null };
+    }
+
+    checkBool(par) {
+        // Handle null/undefined
+        if (par === null || par === undefined) {
+            return { value: null, error: "Empty" };
+        }
+        
+        // Handle actual booleans
+        if (typeof par === 'boolean') {
+            return { value: par, error: null };
+        }
+        
+        // Handle numbers
+        if (typeof par === 'number') {
+            if (par === 0) return { value: false, error: null };
+            if (par === 1) return { value: true, error: null };
+            return { value: null, error: "Invalid number - must be 0 or 1" };
+        }
+        
+        // Handle strings
+        if (typeof par === 'string') {
+            const trimmed = par.trim().toLowerCase();
+            if (trimmed === '') {
+                return { value: null, error: "Empty" };
+            }
+            if (trimmed === 'true') return { value: true, error: null };
+            if (trimmed === 'false') return { value: false, error: null };
+            if (trimmed === '1') return { value: true, error: null };
+            if (trimmed === '0') return { value: false, error: null };
+            return { value: null, error: "Invalid string - must be 'true', 'false', '0', or '1'" };
+        }
+        
+        return { value: null, error: "Invalid type" };
     }
 }
 

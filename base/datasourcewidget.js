@@ -100,14 +100,24 @@ class DataSourceWidget extends Widget { /*//DOC
         }
     }
     
-    delete_slot(id) { /*//DOC
+    delete_slot(par) { /*//DOC
         Deletes a datum from the dataSource by id.
-        :param id: string id of the item to delete
+        :param par: either string uuid of the item to delete or the whole datum
         */
-        this.log(-1, "delete_slot called", id);
-        
+        this.log(-1, "delete_slot called", par);
+        if (typeof par === 'string') {
+            var id = par;
+        }
+        else {
+            const uuid_key = this.dataSource.getUUIDKey()
+            var id = par[uuid_key]
+            if (!id) {
+                this.err(`could not get ${uuid_key} from datum`);
+                this.signals.error.emit(`Delete failed: could not get ${uuid_key} from datum`);
+                return;
+            }
+        }
         const result = this.dataSource.delete(id);
-        
         if (result && typeof result.then === 'function') {
             // Async result (HTTPDataSource)
             result.then((data) => {
@@ -184,6 +194,7 @@ class DataSourceWidget extends Widget { /*//DOC
         }
         
         // Emit the data
+        this.log(-1, "emitting data");
         this.signals.data.emit(data);
     }
     
