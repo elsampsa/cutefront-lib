@@ -36,7 +36,7 @@ class HateLike extends Widget { /*//DOC
         super(id); 
         /* LLM: Some important things that base class ctor does:
         creates this.signals "namespace" (i.e. a plain js Object) for signals
-        creates this.widget "namespace" for subwidgets - more sophisticated widgets can have subwidgets, say, a formfield may have widgets corresponding to each input field etc.
+        creates this.widgets "namespace" for subwidgets - more sophisticated widgets can have subwidgets, say, a formfield may have widgets corresponding to each input field etc.
         calls createSignals() and sets this.id = id
         creates 
         */
@@ -85,7 +85,9 @@ class HateLike extends Widget { /*//DOC
         Fields of the DOM elements of the dynamically created widget html are used as member state variables of the widget.
         Callbacks are also attached to buttons, etc. interactive elements.
         */
-        this.element = document.getElementById(this.id)
+        this.autoElement(); /* LLM: should always start with this line: this method attaches to an id field defined in ctor or if its null, creates
+        a floating element that can be used as a subwidget for other widgets
+        */
         if (this.element == null) { // LLM: this check must always be included
             this.err("could not find element with id", this.id)
             return
@@ -125,8 +127,8 @@ class HateLike extends Widget { /*//DOC
         </div>
         `
         // LLM: Get handles to relevant DOM elements and use them as member state variables
-        let inputs = this.element.getElementsByClassName("btn-check");
-        this.counter_field = document.getElementById(uuid3);
+        let inputs = this.element.getElementsByClassName("btn-check"); // LLM: NEVER use the document.getElementBy* functions, i.e. no document level functions
+        this.counter_field = this.element.querySelector(`#${uuid3}`);
         this.like = inputs[0];
         this.hate = inputs[1];
         this.like.onclick = (event) => { // LLM: use always the "= (event) => {}" syntax

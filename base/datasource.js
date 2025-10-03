@@ -57,13 +57,22 @@ class Dummy0DataSource extends DataSource { /*//DOC
         return this;
     }
 
-    // no create or detele methods, just update and read
-    read() {
-        return this.data;
+    create(datum) {
+        this.data = datum;
+        return this.dataModel.dummyCreate(datum)
+    }
+
+    read(datum) {
+        return this.dataModel.dummyRead(datum)
     }
 
     update(datum) {
         this.data = datum;
+        return this.dataModel.dummyUpdate(datum)
+    }
+
+    delete(datum) {
+        return this.dataModel.dummyDelete(datum)
     }
 }
 
@@ -136,9 +145,6 @@ class DummyDataSource extends DataSource { /*//DOC
 
     delete(id) {
         const id_key = this.uuid_key;
-
-        
-
         const index = this.data.findIndex((item) => item[id_key] === id);
         if (index === -1) {
             return `Item with ${id_key} ${id} not found`;
@@ -147,7 +153,6 @@ class DummyDataSource extends DataSource { /*//DOC
         const deleted = this.data.splice(index, 1)[0];
         return deleted;
     }
-
 
     setPage(paginationInfo) {
         if (paginationInfo) {

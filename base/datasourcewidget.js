@@ -28,54 +28,39 @@ class DataSourceWidget extends Widget { /*//DOC
         this.signals.datamodel_read = new Signal("Carries dataModel.read"); 
         this.signals.datamodel_update = new Signal("Carries dataModel.update");
         this.signals.pagination_changed = new Signal("Carries pagination info for UI");
-        this.signals.error = new Signal("Carries error messages");
+        this.signals.error = new Signal("Carries error object: {message: string, data: any} where data is the server response");
     }
     
     // *** CRUD SLOTS ***
-    
+
     read_slot() { /*//DOC
         Reads data from the dataSource and emits data signal.
-        Also emits pagination info if available.
         */
         this.log(-1, "read_slot called");
-        
-        // Handle both sync (DummyDataSource) and async (HTTPDataSource) cases
         const result = this.dataSource.read();
-        
-        if (result && typeof result.then === 'function') {
-            // Async result (HTTPDataSource)
-            result.then((data) => {
-                this._handleReadResult(data);
-            }).catch((error) => {
-                this.log(0, "read_slot error:", error.message);
-                this.signals.error.emit(`Read failed: ${error.message}`);
-            });
-        } else {
-            // Sync result (DummyDataSource)
-            this._handleReadResult(result);
-        }
+        this._handleAsyncOrSync(
+            result,
+            (data) => this._handleReadResult(data),
+            (error) => {
+                this.log(0, "read_slot error:", error);
+                this._emitError("Read failed", error);
+            }
+        );
     }
-    
+
     create_slot(datum) { /*//DOC
         Creates a new datum in the dataSource.
-        :param datum: object with data fields
         */
         this.log(-1, "create_slot called", datum);
-        
         const result = this.dataSource.create(datum);
-        
-        if (result && typeof result.then === 'function') {
-            // Async result (HTTPDataSource)
-            result.then((data) => {
-                this._handleCRUDResult(data, 'create');
-            }).catch((error) => {
-                this.log(0, "create_slot error:", error.message);
-                this.signals.error.emit(`Create failed: ${error.message}`);
-            });
-        } else {
-            // Sync result (DummyDataSource)
-            this._handleCRUDResult(result, 'create');
-        }
+        this._handleAsyncOrSync(
+            result,
+            (data) => this._handleCRUDResult(data, 'create'),
+            (error) => {
+                this.log(0, "create_slot error:", error);
+                this._emitError("Create failed", error);
+            }
+        );
     }
     
     update_slot(datum) { /*//DOC
@@ -83,21 +68,15 @@ class DataSourceWidget extends Widget { /*//DOC
         :param datum: object with data fields including id
         */
         this.log(-1, "update_slot called", datum);
-        
         const result = this.dataSource.update(datum);
-        
-        if (result && typeof result.then === 'function') {
-            // Async result (HTTPDataSource)
-            result.then((data) => {
-                this._handleCRUDResult(data, 'update');
-            }).catch((error) => {
-                this.log(0, "update_slot error:", error.message);
-                this.signals.error.emit(`Update failed: ${error.message}`);
-            });
-        } else {
-            // Sync result (DummyDataSource)
-            this._handleCRUDResult(result, 'update');
-        }
+        this._handleAsyncOrSync(
+            result,
+            (data) => this._handleCRUDResult(data, 'update'),
+            (error) => {
+                this.log(0, "update_slot error:", error);
+                this._emitError("Update failed", error);
+            }
+        );
     }
     
     delete_slot(par) { /*//DOC
@@ -113,23 +92,19 @@ class DataSourceWidget extends Widget { /*//DOC
             var id = par[uuid_key]
             if (!id) {
                 this.err(`could not get ${uuid_key} from datum`);
-                this.signals.error.emit(`Delete failed: could not get ${uuid_key} from datum`);
+                this._emitError("Delete failed", `could not get ${uuid_key} from datum`);
                 return;
             }
         }
         const result = this.dataSource.delete(id);
-        if (result && typeof result.then === 'function') {
-            // Async result (HTTPDataSource)
-            result.then((data) => {
-                this._handleCRUDResult(data, 'delete');
-            }).catch((error) => {
-                this.log(0, "delete_slot error:", error.message);
-                this.signals.error.emit(`Delete failed: ${error.message}`);
-            });
-        } else {
-            // Sync result (DummyDataSource)
-            this._handleCRUDResult(result, 'delete');
-        }
+        this._handleAsyncOrSync(
+            result,
+            (data) => this._handleCRUDResult(data, 'delete'),
+            (error) => {
+                this.log(0, "delete_slot error:", error);
+                this._emitError("Delete failed", error);
+            }
+        );
     }
     
     // *** OTHER SLOTS ***
@@ -177,12 +152,31 @@ class DataSourceWidget extends Widget { /*//DOC
     
     // *** INTERNAL METHODS ***
     
+    async _handleAsyncOrSync(result, onSuccess, onError) { /*//DOC
+        Handle both async (HTTPDataSource) and sync (DummyDataSource) results
+        :param result: The return value from datasource method
+        :param onSuccess: Callback function called with data on success
+        :param onError: Callback function called with error on failure
+        */
+        if (result && typeof result.then === 'function') {
+            // Async result
+            result.then((data) => {
+                onSuccess(data);
+            }).catch((error) => {
+                onError(error);
+            });
+        } else {
+            // Sync result
+            onSuccess(result);
+        }
+    }
+
     _handleReadResult(data) {
         this.log(-1, "_handleReadResult", typeof data, data);
         
-        // Check if result is an error string
-        if (typeof data === 'string') {
-            this.signals.error.emit(data);
+        // Check if result is an error (string starting with typical error patterns)
+        if (typeof data === 'string' && (data.startsWith('HTTP') || data.startsWith('Error') || data.includes('failed'))) {
+            this._emitError("Read failed", data);
             return;
         }
         
@@ -202,13 +196,36 @@ class DataSourceWidget extends Widget { /*//DOC
         this.log(-1, `_handleCRUDResult ${operation}`, typeof result, result);
         
         // Check if result is an error string
-        if (typeof result === 'string') {
-            this.signals.error.emit(`${operation}: ${result}`);
+        if (typeof result === 'string' && (result.startsWith('HTTP') || result.startsWith('Error') || result.includes('failed'))) {
+            const opName = operation.charAt(0).toUpperCase() + operation.slice(1);
+            this._emitError(`${opName} failed`, result);
             return;
         }
         
         // Success - re-read data to refresh UI
         this.read_slot();
+    }
+    
+    _emitError(message, errorData) {
+        // Try to parse string as JSON if it looks like JSON
+        let data = errorData;
+        if (typeof errorData === 'string') {
+            const trimmed = errorData.trim();
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+                (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                    data = JSON.parse(trimmed);
+                } catch (e) {
+                    // Keep as string if parsing fails
+                    data = errorData;
+                }
+            }
+        }
+        
+        this.signals.error.emit({
+            message: message,
+            data: data
+        });
     }
     
     createState() {

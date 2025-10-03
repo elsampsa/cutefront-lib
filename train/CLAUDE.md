@@ -36,30 +36,42 @@ might not have all the correct docstrings, etc. but we want to get there.
 
 Said that, these are widget classes in the base library you should take a look at:
 
+```
 ../base/group.js
 ../base/formwidget.js
 ../base/listwidget.js
 ../base/sidebarwidget.js
 ../base/tabwidget.js
-
+```
 (and the corresponding html files)
 
 How data is received from the backend and inserted to the widgets, is handled by datasource widgets.  Please see these files:
+```
+../base/datamodel.js : `DataModel` defines the structure of the data records
+../base/datasource.js : `DataSource` defines CRUD operations.  Provides also the class `DummyDataSource`.
+../base/httpdatasource.js : `HTTPDataSource` : HTTP implementation of the datasource
+../base/datasourcewidget.js : `DataSourceWidget` coordinates UI interaction and signals and slots of a datasource
+../base/authmodel.js : `AuthModel` is an authentication model for httpdatasource (injects auth data into the request, say, a token)
+```
 
-../base/datasourcewidget.js
-../base/authhttpdatasourcewidget.js
-../base/mockdatasourcewidget.js
-
-Datasources handle the connection to a REST datasource.  Mock datasources work exactly like them, but instead they simulate
-the datasource and cache datums into memory.  One must be able to change between true and mock datasources by just changing the widget class.
-
+```js
+const itemDataModel = new ItemDataModel(); // defines what datarecords have .. subclassed from DataModel
+const itemDataSource = new DummyDataSource().setDataModel(itemDataModel).setUUIDKey("id"); // 
+const itemDataSourceWidget = new DataSourceWidget('item-datasource-widget', itemDataSource);
+```
+`HTTPDataSource` class has these methods:
+```js
+setBaseUrl(url)
+setAuthModel(authModel) 
+setPaginationStrategy(strategy) 
+```
 Finally, let's talk about child/parent widgets.
 
 A typical example would be a list (= basic / parent widget) that owns list items (= child widgets).  In that case, 
-the parent widget would create child widgets on-the-fly and cache them into a list.  It can then query it's child widget's HTML DOM element from their ``getElement()`` and attach it to it's own DOM tree / remove it from it's own DOM tree when necessary, etc.  That ../base/listwidget.js is a good example.
+the parent widget would create child widgets on-the-fly and cache them into a list.  It can then query it's child widget's HTML DOM element from their ``getElement()`` and attach it to it's own DOM tree / remove it from it's own DOM tree when necessary, etc.  That `../base/listwidget.js` is a good example.
 
-Please take also a look into ./section.js for an example of a nested widget structure: there a widget creates in its `createElement` method
-child widgets and attaches their HTML code into its internal HTML.  Pay attention on how the API is declared.  In ./layout.html you have an example
+Please take also a look into `./sections.js` for an example of a nested widget structure: there a widget creates in its `createElement` method
+child widgets and attaches their HTML code into its internal HTML.  In `./layout.html` you have an example
 how the signals and slots are connected for that case.
 
 I hope you got it!  Briefly, I will ask you for widgets.  Please, always provide me with both the .js and accompanying .html files.  
