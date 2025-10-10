@@ -28,7 +28,7 @@ class DataSourceWidget extends Widget { /*//DOC
         this.signals.datamodel_read = new Signal("Carries dataModel.read"); 
         this.signals.datamodel_update = new Signal("Carries dataModel.update");
         this.signals.pagination_changed = new Signal("Carries pagination info for UI");
-        this.signals.error = new Signal("Carries error object: {message: string, data: any} where data is the server response");
+        this.signals.error = new Signal("Carries error object: {message: str, status: int, body: str/json/null} where body is the server response if avail");
     }
     
     // *** CRUD SLOTS ***
@@ -207,24 +207,36 @@ class DataSourceWidget extends Widget { /*//DOC
     }
     
     _emitError(message, errorData) {
-        // Try to parse string as JSON if it looks like JSON
-        let data = errorData;
+        // If errorData is already a structured error from HTTPDataSource, use it
+        if (errorData && typeof errorData === 'object' && errorData.status !== undefined) {
+            this.signals.error.emit({
+                message: errorData.message || message,
+                status: errorData.status,
+                body: errorData.body
+            });
+            return;
+        }
+
+        // Otherwise, try to parse string as JSON if it looks like JSON
+        let body = errorData;
         if (typeof errorData === 'string') {
             const trimmed = errorData.trim();
-            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
                 (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
                 try {
-                    data = JSON.parse(trimmed);
+                    body = JSON.parse(trimmed);
                 } catch (e) {
                     // Keep as string if parsing fails
-                    data = errorData;
+                    body = errorData;
                 }
             }
         }
-        
+
+        // Emit with null status for non-HTTP errors
         this.signals.error.emit({
             message: message,
-            data: data
+            status: null,
+            body: body
         });
     }
     

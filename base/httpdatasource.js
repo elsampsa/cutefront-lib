@@ -72,7 +72,7 @@ class HTTPDataSource extends DataSource {
                         throw {
                             message: `HTTP ${retryResponse.status}: ${retryResponse.statusText}`,
                             status: retryResponse.status,
-                            data: errorData
+                            body: errorData
                         };
                     }
                     
@@ -81,27 +81,46 @@ class HTTPDataSource extends DataSource {
                 throw {
                     message: "Authentication failed",
                     status: 401,
-                    data: null
+                    body: null
                 };
             }
             
             if (!response.ok) {
+                /* Backend has raised an HTTP error code and replies with some
+                additional info: it can be a json object or a plain string.
+                That data is used to create a standard error structure that
+                is thrown.
+                Downstream widgets can use either the message that has always something
+                (error code and the HTTP standard status message)
+                or the additionaly information (if any) in the member data
+                 */
                 let errorData = await this._parseErrorResponse(response);
                 throw {
                     message: `HTTP ${response.status}: ${response.statusText}`,
-                    status: response.status,
-                    data: errorData
+                    status: response.status, // i.e. 401 etc.
+                    body: errorData // json or plain string .. whatever came with the response.
+                    // may be null
                 };
             }
-            
-            const data = await response.json();
-            
+
+            // Check if response has JSON content
+            const contentType = response.headers.get('content-type');
+            let body;
+            if (contentType && contentType.includes('application/json')) {
+                body = await response.json();
+            } else if (contentType && (contentType.includes('text/plain') || contentType.includes('text/html'))) {
+                body = await response.text();  // Return the plain text string
+            } else {
+                // No recognizable content - return null
+                body = null;
+            }
+
             // Let pagination strategy parse the response if available
             if (this.paginationStrategy && options.method === 'GET') {
-                return this.paginationStrategy.parseResponse(data);
+                return this.paginationStrategy.parseResponse(body);
             }
-            
-            return data;
+
+            return body;
             
         } catch (error) {
             // If error is already our structured format, pass it through
@@ -112,7 +131,7 @@ class HTTPDataSource extends DataSource {
             throw {
                 message: `Network error: ${error.message}`,
                 status: null,
-                data: error
+                body: error
             };
         }
     }
@@ -134,11 +153,11 @@ class HTTPDataSource extends DataSource {
             const response = await fetch(requestConfig.url, requestConfig);
             
             if (!response.ok) {
-                let errorData = await this._parseErrorResponse(response);
+                let errorBody = await this._parseErrorResponse(response);
                 throw {
                     message: `HTTP ${response.status}: ${response.statusText}`,
                     status: response.status,
-                    data: errorData
+                    body: errorBody
                 };
             }
             
@@ -146,12 +165,16 @@ class HTTPDataSource extends DataSource {
             
         } catch (error) {
             if (error && error.status !== undefined) {
-                throw error;
+                throw {
+                    message: `Unkown error`,
+                    status: null,
+                    body: null
+                };
             }
             throw {
                 message: `Network error: ${error.message}`,
                 status: null,
-                data: error
+                body: error
             };
         }
     }

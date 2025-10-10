@@ -1,4 +1,10 @@
-Hi!  Let's do some development with CuteFront.  It is a pure-javascript and HTML framework.  It is similar to the Qt desktop framework.  Let's summarize how it works:
+Hi Claude!
+
+Let's do some development with CuteFront.  It is a pure-javascript and HTML framework.  It is similar to the Qt desktop framework.  
+
+This file is either a preamble of a small dump of the CuteFront library I have given you or alternatively you get this file independently and then you can decide which parts of the library you want to study in more detail.  Please read at least the first mentioned files below.
+
+Let's summarize how CuteFront works.
 
 Widgets are written in javascript.  CSS and HTML from bootstrap version 5 are used.
 
@@ -17,7 +23,7 @@ Each widget has a corresponding html file with the same name (example: "some.htm
 should be very basic html without any "eye candy" or fancy css styling.  The idea is that the user can see easily how the widgets are used
 from html.
 
-Signals and slots between widgets instances are explicitly connected in the main html file.
+The idea is, that widgets have their own, well-separated and documented API and they only interact with the outside world using signals and slots.
 
 When user interacts with a widget (say, with a click or typing something), the widget's internal state is changed (say, contents of a text field or a radio button state).  This interaction can result in a signal being emitted.
 
@@ -26,10 +32,17 @@ When a widget receives a signal to a slot, this typically results in its interna
 The state of the widget is cached in widget's HTML elements (say, the state of a radio button).  This is the preferred
 way to maintain the state.  If needed, some part of the state can also be cached to internal member variables (say, this.some_boolean_flag, etc.).
 
+When creating single-page applications with complex interactions between widgets, the signals and slots between widgets instances are explicitly connected in the main html file.
+
 Now I will give you an example how to define a basic widget class `HateLike`.
 
-The implementation is in file `hatelike.js` and it's accompanying html file in `hatelike.html`.  `hatelike.js` is the "gold" standard
-example widget, with the latest ideas in widget organization and API declaration.  
+The implementation is in file `hatelike.js` and it's accompanying html file in `hatelike.html`.  `hatelike.js` is a bried "gold" standard
+example widget, with the latest ideas in widget organization and API declaration.
+
+Please take a look into
+
+./hatelike.js
+./hatelike.html
 
 Next, let's take a look at some widgets we in the base library.  Remember that CuteFront is still a working progress and some of the files
 might not have all the correct docstrings, etc. but we want to get there.
@@ -47,8 +60,8 @@ Said that, these are widget classes in the base library you should take a look a
 
 How data is received from the backend and inserted to the widgets, is handled by datasource widgets.  Please see these files:
 ```
-../base/datamodel.js : `DataModel` defines the structure of the data records
-../base/datasource.js : `DataSource` defines CRUD operations.  Provides also the class `DummyDataSource`.
+../base/datamodel.js : `DataModel` defines the structure of the data records.  
+../base/datasource.js : `DataSource` defines CRUD operations.
 ../base/httpdatasource.js : `HTTPDataSource` : HTTP implementation of the datasource
 ../base/datasourcewidget.js : `DataSourceWidget` coordinates UI interaction and signals and slots of a datasource
 ../base/authmodel.js : `AuthModel` is an authentication model for httpdatasource (injects auth data into the request, say, a token)
@@ -67,12 +80,11 @@ setPaginationStrategy(strategy)
 ```
 Finally, let's talk about child/parent widgets.
 
-A typical example would be a list (= basic / parent widget) that owns list items (= child widgets).  In that case, 
-the parent widget would create child widgets on-the-fly and cache them into a list.  It can then query it's child widget's HTML DOM element from their ``getElement()`` and attach it to it's own DOM tree / remove it from it's own DOM tree when necessary, etc.  That `../base/listwidget.js` is a good example.
+A typical example would be a list (= basic / parent widget) that owns list items (= child widgets).  In that case, the parent widget would create child widgets on-the-fly and cache them into a list.  It can then query it's child widget's HTML DOM element from their ``getElement()`` and attach it to it's own DOM tree / remove it from it's own DOM tree when necessary, etc.  That `../base/listwidget.js` is a good example.
 
-Please take also a look into `./sections.js` for an example of a nested widget structure: there a widget creates in its `createElement` method
-child widgets and attaches their HTML code into its internal HTML.  In `./layout.html` you have an example
-how the signals and slots are connected for that case.
+Finally, lets talk about how we can compose a page of complex widgets.  Please take a look into `./landing.html` and `./layout.html`.
+In landing.html we have also the possibility to test semi-automatically the whole page.  Both of them use also nested widgets: please take also a look into `./sections.js` for an example of a nested widget structure: there a widget creates in its `createElement` method
+child widgets and attaches their HTML code into its internal HTML.  
 
 I hope you got it!  Briefly, I will ask you for widgets.  Please, always provide me with both the .js and accompanying .html files.  
 

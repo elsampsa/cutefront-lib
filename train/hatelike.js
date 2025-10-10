@@ -49,7 +49,10 @@ class HateLike extends Widget { /*//DOC
     If this class inherits signals, don't forget to call the parent classes createSignals method.
     */
         // super.createSignals(); // LLM: add if necessary
-        this.signals.message = new Signal("Carries a string.  Message that depends which radiobutton has been clicked"); // LLM: note how signals are autodocumented
+        this.signals.message = new Signal("Message that depends which radiobutton has been clicked. Carries a string"); /* 
+        LLM: note how signals are autodocumented.  If the signal carries a json object, it should be documented, for example:
+        "Carries a datum = {name: str, surname: str}"
+        */
     }
     /* LLM: Next define slots where this widget can receive signals from other widgets.
     Please use always the "snake-case" syntax for slots and always include "_slot" in the name of the function,

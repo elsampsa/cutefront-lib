@@ -1,6 +1,8 @@
 import { DataModel } from "./datamodel.js";
 
-class DataSource {
+class DataSource { /*//DOC
+    DataSource may or may not use DataModel (from ./datamodel.js)
+    */
     constructor() {
         this.dataModel = null;
         this.paginationInfo = null;
@@ -43,41 +45,7 @@ class DataSource {
     }
 }
 
-class Dummy0DataSource extends DataSource { /*//DOC
-    A datasource that returns a single json object
-    */
-    constructor() {
-        super();
-        this.data = {}
-    }
-
-    setDataModel(dataModel) {
-        this.dataModel = dataModel;
-        this.data = this.dataModel.getMockData();
-        return this;
-    }
-
-    create(datum) {
-        this.data = datum;
-        return this.dataModel.dummyCreate(datum)
-    }
-
-    read(datum) {
-        return this.dataModel.dummyRead(datum)
-    }
-
-    update(datum) {
-        this.data = datum;
-        return this.dataModel.dummyUpdate(datum)
-    }
-
-    delete(datum) {
-        return this.dataModel.dummyDelete(datum)
-    }
-}
-
-
-class DummyDataSource extends DataSource { /*//DOC
+class MockDataSource extends DataSource { /*//DOC
     A datasource for list like data: each element of the list is a json object
     Features pagination
     */
@@ -170,4 +138,4 @@ class DummyDataSource extends DataSource { /*//DOC
     }
 }
 
-export { DataSource, Dummy0DataSource, DummyDataSource };
+export { DataSource, MockDataSource };

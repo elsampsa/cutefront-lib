@@ -154,6 +154,9 @@ class Widget { /* The Base class implementation for CuteFront Widgets
         this.createSignals();
         // this._enhanceSlotMethods(); // add class info to the _slot methods // TODO: does this work or not?
     }
+    createSignals() {
+        this.err("you must subclass createSignals");
+    }
     createElement() { // set the html element corresponding to this component
         this.err("you must subclass createElement");
         // the main html element dom object shall be in the member this.element

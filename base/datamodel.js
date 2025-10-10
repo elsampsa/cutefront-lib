@@ -1,6 +1,10 @@
-class DataModel {
+class DataModel { /*//DOC
+    Once can define what each datum field in each of the CRUD operations looks like
+    together with a checker function that can be propagated to downstream widgets so they now
+    how to check those fields
+    */
     constructor() {
-        // Default datamodel - must be overridden
+        // An example datamodel - must be overridden
         this.create = {
             name: {
                 label: "First Name",
@@ -23,7 +27,6 @@ class DataModel {
                 check: this.checkNumber
             }
         };
-        
         this.read = this.create;
         this.update = this.create;
     }
@@ -31,6 +34,8 @@ class DataModel {
     getMockData(n) { // returns a list of mock data of n elements, a single element or null
         return [];
     }
+
+    // TODO: add checkEmail method
 
     checkStr(par) {
         const str = String(par);
