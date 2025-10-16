@@ -369,9 +369,11 @@ class Widget { /* The Base class implementation for CuteFront Widgets
     stateToPar() { // serialize state of the widget and return a par
         return null;
     }
+    /*
     getElement(par) {
         return this.element.querySelector(`#${par}`); // WARNING: this doesn't work in action, why!?
     }
+    */
 
     _enhanceSlotMethods() {
         // add property 'method_addr' to all _slot methods

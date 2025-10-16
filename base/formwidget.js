@@ -220,6 +220,8 @@ class FormWidget extends Widget {  /*//DOC
         If your custom data source sends signals to datamodel_slot that has some other type fields, then be sure
         to subclass this method and to create appropriate FormFieldWidget subclasses.
         */
+        this.input_fields = new Object();
+        this.element.innerHTML = '';
         this.datamodel = datamodel;
         console.log("datamodel_slot", datamodel)
         this.log(-1, "datamodel_slot", datamodel)
