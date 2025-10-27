@@ -138,6 +138,32 @@ function subWidgetRecurse(mainobj) { /*
     return tree;
 }
 
+// Function to get all methods across the entire prototype chain
+function getAllMethodsInPrototypeChain(obj) {
+    const methods = new Set();
+    
+    let currentPrototype = Object.getPrototypeOf(obj);
+    while (currentPrototype && currentPrototype !== Object.prototype) {
+        // Get all property names from the current prototype
+        const methodNames = Object.getOwnPropertyNames(currentPrototype)
+            .filter(name => 
+                name !== 'constructor' && 
+                typeof obj[name] === 'function'
+            );
+
+        // Log the current prototype and its methods for debugging
+        // console.log(`Methods in prototype ${currentPrototype.constructor.name}:`, methodNames);
+
+        // Add methods to the set
+        methodNames.forEach(name => methods.add(name));
+
+        // Move up the prototype chain
+        currentPrototype = Object.getPrototypeOf(currentPrototype);
+    }
+
+    return Array.from(methods);
+}
+
 
 class Widget { /* The Base class implementation for CuteFront Widgets
 
@@ -223,7 +249,7 @@ class Widget { /* The Base class implementation for CuteFront Widgets
         }
         if (this.id === undefined || this.id == null) {
             this.log(-1, "creating orphan element");
-            console.log("creating orphan element"); 
+            // console.log("creating orphan element"); 
             this.element = document.createElement("div");
             return;
         }
@@ -407,10 +433,15 @@ class Widget { /* The Base class implementation for CuteFront Widgets
             api["about"] = ctor_docstring;
         }
 
-        const methodNames = Object.getOwnPropertyNames(this.constructor.prototype);
+        // const methodNames = Object.getOwnPropertyNames(this.constructor.prototype);
+        // const methodNames = Object.getOwnPropertyNames(Object.getPrototypeOf(this))
+        // Get all methods
+        const methodNames = getAllMethodsInPrototypeChain(this);
+        // console.log("All methods found:", methodNames);
+
         for (const key of methodNames) {
             const obj = this[key] // the method
-            console.log("introspect method:", key);
+            // console.log("introspect method:", key);
             if (typeof this[key] === 'function' && key.endsWith('_slot')) {
                 if (!api.hasOwnProperty('slots')) {
                     api["slots"] = Object();
@@ -503,7 +534,23 @@ class Signal {
         delete this.callbacks;
     }
     getDocString() {
-        return this.docstring;
+        if (!this.docstring) return '';
+
+        // Split into lines and completely normalize each line
+        const lines = this.docstring
+            .split(/\r?\n/)
+            .map(line => line.trim())  // Remove ALL leading/trailing whitespace
+            .filter((line, index, arr) => {
+                // Remove empty lines at start and end, but keep internal empty lines
+                if (line === '') {
+                    return index > 0 && index < arr.length - 1 &&
+                           arr.slice(0, index).some(l => l !== '') &&
+                           arr.slice(index + 1).some(l => l !== '');
+                }
+                return true;
+            });
+
+        return lines.join('\n');
     }
 }
 

@@ -53,6 +53,8 @@ def writeAll(target_file, lis):
             append(f, l)
     print("\nWrote", target_file)
 
+os.system("cp -f ../../../cutefront/app/layout.html .")
+os.system("cp -f ../../../cutefront/app/landing.html .")
 
 this=Path(".")
 baselib=Path("../base") # place to share stuff with the docker containers

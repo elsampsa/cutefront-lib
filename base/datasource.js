@@ -6,6 +6,7 @@ class DataSource { /*//DOC
     constructor() {
         this.dataModel = null;
         this.paginationInfo = null;
+        this.paginationStrategy = null;
         this.uuid_key = 'uuid'; // what column is used as the unique identifier
     }
 
@@ -35,6 +36,11 @@ class DataSource { /*//DOC
         return this;
     }
 
+    setPaginationStrategy(strategy) {
+        this.paginationStrategy = strategy;
+        return this;
+    }
+
     setUUIDKey(key) {
         this.uuid_key = key;
         return this;
@@ -52,8 +58,6 @@ class MockDataSource extends DataSource { /*//DOC
     constructor() {
         super();
         this.data = [];
-        this.currentPage = 1;
-        this.pageSize = 10;
     }
 
     setDataModel(dataModel) {
@@ -63,12 +67,19 @@ class MockDataSource extends DataSource { /*//DOC
     }
 
     read() {
-        if (this.paginationInfo && this.paginationInfo.currentPage) {
-            const start =
-                (this.paginationInfo.currentPage - 1) *
-                (this.paginationInfo.pageSize || 10);
-            const end = start + (this.paginationInfo.pageSize || 10);
-            return this.data.slice(start, end);
+        if (this.paginationStrategy && this.paginationStrategy.enabled) {
+            if (this.paginationStrategy.currentPage < this.paginationStrategy.baseIndex) {
+                console.error("wrong pagination base index")
+            }
+            else {
+                this.paginationStrategy.totalItems = this.data.length;
+                const start =
+                    (this.paginationStrategy.currentPage - this.paginationStrategy.baseIndex) *
+                    (this.paginationStrategy.pageSize);
+                const end = start + Math.min(this.paginationStrategy.pageSize, this.paginationStrategy.totalItems);
+                console.log(this.data.slice(start, end));
+                return this.data.slice(start, end);
+            }
         }
         return this.data;
     }
@@ -122,18 +133,18 @@ class MockDataSource extends DataSource { /*//DOC
         return deleted;
     }
 
-    setPage(paginationInfo) {
-        if (paginationInfo) {
-            if (paginationInfo.currentPage !== undefined) {
-                this.currentPage = paginationInfo.currentPage;
-            }
-            if (paginationInfo.pageSize !== undefined) {
-                this.pageSize = paginationInfo.pageSize;
-            }
-        } else {
-            // Reset to no pagination
-            this.currentPage = null;
-            this.pageSize = null;
+    setPage(paginationInfo) { /*//DOC
+        Originates typically from upstream widgets to set the current page and page size
+        (and then followed by an immediate call to read)
+        paginationInfo = {
+            currentPage: int,
+            pageSize: int, 
+            ...
+        }
+        paginationInfo = null disables pagination
+        */
+        if (this.paginationStrategy) {
+            this.paginationStrategy.set(paginationInfo)
         }
     }
 }

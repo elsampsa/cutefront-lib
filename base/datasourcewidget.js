@@ -27,7 +27,15 @@ class DataSourceWidget extends Widget { /*//DOC
         this.signals.datamodel_create = new Signal("Carries dataModel.create. Can be connected to downstream widgets like forms for validation");
         this.signals.datamodel_read = new Signal("Carries dataModel.read"); 
         this.signals.datamodel_update = new Signal("Carries dataModel.update");
-        this.signals.pagination_changed = new Signal("Carries pagination info for UI");
+        this.signals.pagination_changed = new Signal(`Carries pagination info: {
+                currentPage: int,
+                totalPages: int,
+                pageSize: int,
+                totalItems: int,
+                enabled: bool
+            }
+            Can carry null, which means that all downstream widgets should stop
+            paginating`);
         this.signals.error = new Signal("Carries error object: {message: str, status: int, body: str/json/null} where body is the server response if avail");
     }
     
@@ -90,7 +98,7 @@ class DataSourceWidget extends Widget { /*//DOC
         else {
             const uuid_key = this.dataSource.getUUIDKey()
             var id = par[uuid_key]
-            if (!id) {
+            if (id==null) {
                 this.err(`could not get ${uuid_key} from datum`);
                 this._emitError("Delete failed", `could not get ${uuid_key} from datum`);
                 return;
@@ -111,14 +119,21 @@ class DataSourceWidget extends Widget { /*//DOC
     
     set_page_slot(pageInfo) { /*//DOC
         Sets pagination info and re-reads data.
-        :param pageInfo: object with currentPage, pageSize, etc. or null to disable pagination
+
+        pageInfo = {
+            currentPage: int,
+            pageSize: int,
+            ...
+        }
+
+        pageInfo == null disables pagination
         */
         this.log(-1, "set_page_slot called", pageInfo);
         
         // Tell dataSource to update its page state
         this.dataSource.setPage(pageInfo);
         
-        // Re-read data with new page
+        // Re-read data with new paging
         this.read_slot();
     }
     
@@ -181,10 +196,22 @@ class DataSourceWidget extends Widget { /*//DOC
         }
         
         // Emit pagination info first if available
-        if (this.dataSource.paginationStrategy) {
+        if (this.dataSource.paginationStrategy && this.dataSource.paginationStrategy.enabled) {
             const paginationInfo = this.dataSource.paginationStrategy.getPaginationInfo();
+            /* 
+            paginationInfo = {
+                currentPage: int,
+                totalPages: int,
+                pageSize: int,
+                totalItems: int
+            }   
+
+            */
             this.log(-1, "emitting pagination info", paginationInfo);
             this.signals.pagination_changed.emit(paginationInfo);
+        } 
+        else {
+            this.signals.pagination_changed.emit(null);
         }
         
         // Emit the data
