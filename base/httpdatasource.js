@@ -30,7 +30,7 @@ class HTTPDataSource extends DataSource {
         :param options: fetch options (method, body, headers, etc.)
         */
         let requestConfig = {
-            url: `${this.baseUrl}${endpoint}`,
+            url: `${this.baseUrl}/${endpoint}`,
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
@@ -164,7 +164,7 @@ class HTTPDataSource extends DataSource {
             return await response.json();
             
         } catch (error) {
-            if (error && error.status !== undefined) {
+            if (error.status == undefined) {
                 throw {
                     message: `Unkown error`,
                     status: null,
@@ -173,8 +173,8 @@ class HTTPDataSource extends DataSource {
             }
             throw {
                 message: `Network error: ${error.message}`,
-                status: null,
-                body: error
+                status: error.status,
+                body: error.body // say, {error.body.detail[0].type}
             };
         }
     }
