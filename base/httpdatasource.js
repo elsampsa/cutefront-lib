@@ -118,6 +118,7 @@ class HTTPDataSource extends DataSource {
             // Let pagination strategy parse the response if available
             if (this.paginationStrategy && options.method === 'GET') {
                 return this.paginationStrategy.parseResponse(body);
+                // for example: paginationStrategy can just return the key "data" from the json object
             }
 
             return body;
@@ -164,17 +165,15 @@ class HTTPDataSource extends DataSource {
             return await response.json();
             
         } catch (error) {
-            if (error.status == undefined) {
-                throw {
-                    message: `Unkown error`,
-                    status: null,
-                    body: null
-                };
+            // If error is already our structured format, pass it through
+            if (error && error.status !== undefined) {
+                throw error;
             }
+            // Otherwise wrap network/other errors
             throw {
                 message: `Network error: ${error.message}`,
-                status: error.status,
-                body: error.body // say, {error.body.detail[0].type}
+                status: null,
+                body: error
             };
         }
     }

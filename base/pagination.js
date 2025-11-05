@@ -72,6 +72,7 @@ class PaginationStrategy { /*//DOC
     }
     
     modifyRequest(requestConfig) {
+        this.err("you must subclass parseResponse");
         // Base implementation - subclasses should override
         if (!this.enabled) {
            return requestConfig; // Don't modify if disabled
@@ -82,6 +83,7 @@ class PaginationStrategy { /*//DOC
     
     parseResponse(response) {
         // Base implementation - subclasses should override
+        this.err("you must subclass parseResponse");
         return response;
     }
     

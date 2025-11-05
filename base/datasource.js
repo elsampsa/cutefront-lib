@@ -78,16 +78,20 @@ class MockDataSource extends DataSource { /*//DOC
                     (this.paginationStrategy.pageSize);
                 const end = start + Math.min(this.paginationStrategy.pageSize, this.paginationStrategy.totalItems);
                 console.log(this.data.slice(start, end));
-                return this.data.slice(start, end);
+                return Promise.resolve(this.data.slice(start, end));
             }
         }
-        return this.data;
+        return Promise.resolve(this.data);
     }
 
     create(datum) {
         // Simple validation
         if (!datum || typeof datum !== "object") {
-            return "Invalid datum provided";
+            return Promise.reject({
+                message: "Invalid datum provided",
+                status: null,
+                body: null
+            });
         }
 
         const id = this.uuid_key
@@ -103,34 +107,46 @@ class MockDataSource extends DataSource { /*//DOC
         };
 
         this.data.push(newDatum);
-        return newDatum;
+        return Promise.resolve(newDatum);
     }
 
     update(datum) {
         const id_key = this.uuid_key;
-        
+
         if (!datum || !datum[id_key]) {
-            return `Missing ${id_key} for update`;
+            return Promise.reject({
+                message: `Missing ${id_key} for update`,
+                status: null,
+                body: null
+            });
         }
-        
+
         const index = this.data.findIndex((item) => item[id_key] === datum[id_key]);
         if (index === -1) {
-            return `Item with ${id_key} ${datum[id_key]} not found`;
+            return Promise.reject({
+                message: `Item with ${id_key} ${datum[id_key]} not found`,
+                status: null,
+                body: null
+            });
         }
-        
+
         this.data[index] = { ...this.data[index], ...datum };
-        return this.data[index];
+        return Promise.resolve(this.data[index]);
     }
 
     delete(id) {
         const id_key = this.uuid_key;
         const index = this.data.findIndex((item) => item[id_key] === id);
         if (index === -1) {
-            return `Item with ${id_key} ${id} not found`;
+            return Promise.reject({
+                message: `Item with ${id_key} ${id} not found`,
+                status: null,
+                body: null
+            });
         }
-        
+
         const deleted = this.data.splice(index, 1)[0];
-        return deleted;
+        return Promise.resolve(deleted);
     }
 
     setPage(paginationInfo) { /*//DOC
