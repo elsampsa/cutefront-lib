@@ -23,13 +23,15 @@ class HTTPDataSource extends DataSource {
         return this;
     }
     
-    async makeRequest(endpoint, options = {}) { /*//DOC
-        Core method for making HTTP requests with auth and error handling
-        Subclasses use this to implement custom endpoints
-        :param endpoint: URL path (e.g. '/me' or '/data/123')
+    // ===== HELPER METHODS =====
+
+    _buildRequestConfig(endpoint, options) { /*//DOC
+        Builds base request configuration with URL and headers.
+        :param endpoint: URL path (e.g. '/data' or '/data/123')
         :param options: fetch options (method, body, headers, etc.)
+        :returns: Request config object {url, method, headers, body}
         */
-        let requestConfig = {
+        return {
             url: `${this.baseUrl}/${endpoint}`,
             headers: {
                 'Content-Type': 'application/json',
@@ -37,98 +39,124 @@ class HTTPDataSource extends DataSource {
             },
             ...options
         };
-        
-        // Add auth headers if available
+    }
+
+    _applyAuth(requestConfig) { /*//DOC
+        Applies authentication headers to request config if authModel is available.
+        :param requestConfig: Request config object
+        :returns: Modified request config
+        */
         if (this.authModel) {
             Object.assign(requestConfig.headers, this.authModel.getAuthHeaders());
         }
-        
-        // Let pagination strategy modify the request if available
-        if (this.paginationStrategy && options.method === 'GET') {
-            requestConfig = this.paginationStrategy.modifyRequest(requestConfig);
+        return requestConfig;
+    }
+
+    _applyPagination(requestConfig) { /*//DOC
+        Applies pagination modifications to request config if paginationStrategy is available.
+        :param requestConfig: Request config object
+        :returns: Modified request config
+        */
+        if (this.paginationStrategy) {
+            return this.paginationStrategy.modifyRequest(requestConfig);
         }
-        
-        try {
-            const response = await fetch(requestConfig.url, {
-                method: requestConfig.method || 'GET',
-                headers: requestConfig.headers,
-                body: requestConfig.body
-            });
-            
-            // Handle auth errors
-            if (response.status === 401 && this.authModel) {
-                const refreshed = await this.authModel.handleUnauthorized();
-                if (refreshed) {
-                    // Retry with new token
-                    Object.assign(requestConfig.headers, this.authModel.getAuthHeaders());
-                    const retryResponse = await fetch(requestConfig.url, {
-                        method: requestConfig.method || 'GET',
-                        headers: requestConfig.headers,
-                        body: requestConfig.body
-                    });
-                    
-                    if (!retryResponse.ok) {
-                        let errorData = await this._parseErrorResponse(retryResponse);
-                        throw {
-                            message: `HTTP ${retryResponse.status}: ${retryResponse.statusText}`,
-                            status: retryResponse.status,
-                            body: errorData
-                        };
-                    }
-                    
-                    return await retryResponse.json();
-                }
-                throw {
-                    message: "Authentication failed",
-                    status: 401,
-                    body: null
-                };
+        return requestConfig;
+    }
+
+    async _executeFetch(requestConfig) { /*//DOC
+        Executes the actual fetch request.
+        :param requestConfig: Request config object with {url, method, headers, body}
+        :returns: Response object
+        */
+        return await fetch(requestConfig.url, {
+            method: requestConfig.method || 'GET',
+            headers: requestConfig.headers,
+            body: requestConfig.body
+        });
+    }
+
+    async _handleAuthRetry(requestConfig, response) { /*//DOC
+        Handles 401 authentication errors and token refresh retry logic.
+        :param requestConfig: Request config object
+        :param response: Response object from initial fetch
+        :returns: Retry response object if retry succeeded, null otherwise
+        */
+        if (response.status === 401 && this.authModel) {
+            const refreshed = await this.authModel.handleUnauthorized();
+            if (refreshed) {
+                this._applyAuth(requestConfig); // Re-apply with fresh token
+                return await this._executeFetch(requestConfig);
             }
-            
+        }
+        return null;
+    }
+
+    async _parseResponseBody(response) { /*//DOC
+        Parses response body based on content-type header.
+        :param response: Response object
+        :returns: Parsed body (JSON object, text string, or null)
+        */
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return await response.json();
+        } else if (contentType && (contentType.includes('text/plain') || contentType.includes('text/html'))) {
+            return await response.text();
+        }
+        return null;
+    }
+
+    _parsePaginatedResponse(body) { /*//DOC
+        Applies pagination parsing to response body if paginationStrategy is available.
+        :param body: Response body
+        :returns: Parsed body (e.g., extracts 'data' field from paginated response)
+        */
+        if (this.paginationStrategy) {
+            return this.paginationStrategy.parseResponse(body);
+        }
+        return body;
+    }
+
+    // ===== CORE REQUEST METHOD =====
+
+    async _makeRequest(requestConfig) { /*//DOC
+        Core method that handles the full request lifecycle with error handling.
+        Takes a pre-built requestConfig, applies universal modifications (auth),
+        executes fetch, handles retries, and parses response.
+
+        :param requestConfig: Object with {url, method, headers, body}
+        :returns: Parsed response body
+        :throws: Standardized error object {message, status, body}
+        */
+        // Apply universal modifications
+        requestConfig = this._applyAuth(requestConfig);
+
+        try {
+            let response = await this._executeFetch(requestConfig);
+
+            // Handle auth retry
+            const retryResponse = await this._handleAuthRetry(requestConfig, response);
+            if (retryResponse) {
+                response = retryResponse;
+            }
+
+            // Handle HTTP errors
             if (!response.ok) {
-                /* Backend has raised an HTTP error code and replies with some
-                additional info: it can be a json object or a plain string.
-                That data is used to create a standard error structure that
-                is thrown.
-                Downstream widgets can use either the message that has always something
-                (error code and the HTTP standard status message)
-                or the additionaly information (if any) in the member data
-                 */
-                let errorData = await this._parseErrorResponse(response);
+                const errorData = await this._parseErrorResponse(response);
                 throw {
                     message: `HTTP ${response.status}: ${response.statusText}`,
-                    status: response.status, // i.e. 401 etc.
-                    body: errorData // json or plain string .. whatever came with the response.
-                    // may be null
+                    status: response.status,
+                    body: errorData
                 };
             }
 
-            // Check if response has JSON content
-            const contentType = response.headers.get('content-type');
-            let body;
-            if (contentType && contentType.includes('application/json')) {
-                body = await response.json();
-            } else if (contentType && (contentType.includes('text/plain') || contentType.includes('text/html'))) {
-                body = await response.text();  // Return the plain text string
-            } else {
-                // No recognizable content - return null
-                body = null;
-            }
+            // Parse and return successful response
+            return await this._parseResponseBody(response);
 
-            // Let pagination strategy parse the response if available
-            if (this.paginationStrategy && options.method === 'GET') {
-                return this.paginationStrategy.parseResponse(body);
-                // for example: paginationStrategy can just return the key "data" from the json object
-            }
-
-            return body;
-            
         } catch (error) {
-            // If error is already our structured format, pass it through
+            // Standardize network errors
             if (error && error.status !== undefined) {
-                throw error;
+                throw error; // Already standardized
             }
-            // Otherwise wrap network/other errors
             throw {
                 message: `Network error: ${error.message}`,
                 status: null,
@@ -138,44 +166,25 @@ class HTTPDataSource extends DataSource {
     }
     
 
-    async makeFormRequest(endpoint, verb, formData) {
+    async makeFormRequest(endpoint, verb, formData) { /*//DOC
+        Makes a request with FormData (multipart/form-data).
+        Used for file uploads and form submissions.
+        Note: Content-Type header is NOT set (browser sets it automatically with boundary).
+        :param endpoint: URL path
+        :param verb: HTTP method (usually POST or PUT)
+        :param formData: FormData instance
+        :returns: Parsed response body
+        */
         let requestConfig = {
             url: `${this.baseUrl}/${endpoint}`,
-            headers: {},
+            headers: {}, // No Content-Type - browser will set it with boundary
             method: verb,
             body: formData
         };
-        
-        if (this.authModel) {
-            Object.assign(requestConfig.headers, this.authModel.getAuthHeaders());
-        }
-        
-        try {
-            const response = await fetch(requestConfig.url, requestConfig);
-            
-            if (!response.ok) {
-                let errorBody = await this._parseErrorResponse(response);
-                throw {
-                    message: `HTTP ${response.status}: ${response.statusText}`,
-                    status: response.status,
-                    body: errorBody
-                };
-            }
-            
-            return await response.json();
-            
-        } catch (error) {
-            // If error is already our structured format, pass it through
-            if (error && error.status !== undefined) {
-                throw error;
-            }
-            // Otherwise wrap network/other errors
-            throw {
-                message: `Network error: ${error.message}`,
-                status: null,
-                body: error
-            };
-        }
+
+        // Note: We build config manually here because we don't want Content-Type: application/json
+        // Auth is still applied in _makeRequest
+        return await this._makeRequest(requestConfig);
     }
 
     async _parseErrorResponse(response) {
@@ -240,51 +249,71 @@ class HTTPDataSource extends DataSource {
         return params;
     }
     
+    // ===== CRUD METHODS =====
+
     async read() { /*//DOC
-        Standard READ operation - GET request to read endpoint
+        Standard READ operation - GET request to read endpoint with pagination support.
         Subclass to customize endpoint, add query params, etc.
         */
         const ENDPOINT = '/data';
         const VERB = 'GET';
-        return await this.makeRequest(ENDPOINT, {
+
+        let requestConfig = this._buildRequestConfig(ENDPOINT, {
             method: VERB
         });
+
+        // Apply pagination before making request
+        requestConfig = this._applyPagination(requestConfig);
+
+        const body = await this._makeRequest(requestConfig);
+
+        // Parse paginated response
+        return this._parsePaginatedResponse(body);
     }
-    
+
     async create(datum) { /*//DOC
-        Standard CREATE operation - POST request with JSON body
+        Standard CREATE operation - POST request with JSON body.
         Subclass to customize endpoint, use FormData, etc.
         */
         const ENDPOINT = '/data';
         const VERB = 'POST';
-        return await this.makeRequest(ENDPOINT, {
+
+        const requestConfig = this._buildRequestConfig(ENDPOINT, {
             method: VERB,
             body: JSON.stringify(datum)
         });
+
+        return await this._makeRequest(requestConfig);
     }
-    
+
     async update(datum) { /*//DOC
-        Standard UPDATE operation - PUT request with ID in URL
+        Standard UPDATE operation - PUT request with ID in URL.
         Subclass to use PATCH, put ID in body, use FormData, etc.
         */
         const ENDPOINT = '/data';
         const VERB = 'PUT';
         const id_key = this.uuid_key;
-        return await this.makeRequest(`${ENDPOINT}/${datum[id_key]}`, {
+
+        const requestConfig = this._buildRequestConfig(`${ENDPOINT}/${datum[id_key]}`, {
             method: VERB,
             body: JSON.stringify(datum)
         });
+
+        return await this._makeRequest(requestConfig);
     }
-    
+
     async delete(id) { /*//DOC
-        Standard DELETE operation - DELETE request with ID in URL
+        Standard DELETE operation - DELETE request with ID in URL.
         Subclass to use POST, put ID in body, etc.
         */
         const ENDPOINT = '/data';
         const VERB = 'DELETE';
-        return await this.makeRequest(`${ENDPOINT}/${id}`, {
+
+        const requestConfig = this._buildRequestConfig(`${ENDPOINT}/${id}`, {
             method: VERB
         });
+
+        return await this._makeRequest(requestConfig);
     }
     
     async postForm(datum) { /*//DOC
@@ -300,29 +329,35 @@ class HTTPDataSource extends DataSource {
     }
 
     async me() { /*//DOC
-        Example method: GET current user info from /me endpoint
-        Uses auth token to identify the user
-        Subclass to customize endpoint
+        Example method: GET current user info from /me endpoint.
+        Uses auth token to identify the user.
+        Subclass to customize endpoint.
         */
         const ENDPOINT = '/me';
         const VERB = 'GET';
-        return await this.makeRequest(ENDPOINT, {
+
+        const requestConfig = this._buildRequestConfig(ENDPOINT, {
             method: VERB
         });
+
+        return await this._makeRequest(requestConfig);
     }
 
     async reset(datum) { /*//DOC
-        Example method: POST to reset endpoint with email in URL path
-        Shows how to construct URLs with data from datum
-        Subclass to customize endpoint and verb
+        Example method: POST to reset endpoint with email in URL path.
+        Shows how to construct URLs with data from datum.
+        Subclass to customize endpoint and verb.
         :param datum: Object containing email field
         */
         const ENDPOINT = '/reset';
         const VERB = 'POST';
-        return await this.makeRequest(`${ENDPOINT}/${datum.email}`, {
+
+        const requestConfig = this._buildRequestConfig(`${ENDPOINT}/${datum.email}`, {
             method: VERB,
             body: JSON.stringify(datum)
         });
+
+        return await this._makeRequest(requestConfig);
     }
     
     setPage(paginationInfo) {
