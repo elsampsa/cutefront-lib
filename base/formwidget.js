@@ -1,180 +1,11 @@
 import { Widget, Signal, randomID } from './widget.js';
 
-class FormFieldWidget extends Widget { /*//DOC
-    An individual input field for the FormWidget (see below)
-    
-    Should not be used as-is by the API user
-    */
-    constructor(ctx) {
-        super()
-        this.unique_name = ctx.unique_name
-        this.key = ctx.key
-        this.datamodel = ctx.datamodel
-        this.createElement()
-        this.createState()
-    }
-
-    createSignals() {
-    }
-
-    createState() {
-    }
-
-    createElement() {
-        this.log(-1, "formfieldwidget: datamodel:", this.datamodel)
-        let uniquename = this.unique_name + "-" + this.key // i.e. "myInputForm-email"
-        this.element = document.createElement("div");
-        this.element.classList.add("mb-3");
-        var line = `
-        <label for="${uniquename}" class="form-label">${this.datamodel.label}</label>
-        <input class="form-control" id="${uniquename}">
-        <div class="valid-feedback">ok!</div>
-        `
-        // <input type="email" class="form-control" id="${uniquename} aria-describedby="emailHelp">
-        if (this.datamodel.help != undefined) {
-            line.concat(`
-            <div id="${this.id}Help" class="form-text">${this.datamodel.help}</div>
-            `)
-        }
-        this.element.innerHTML = line
-        // cache the input fields
-        this.input = this.element.getElementsByTagName("input").item(0)
-        this.valid_msg = this.element.getElementsByClassName("valid-feedback").item(0)
-    }
-
-    getElement() { // html element for FormWidget
-        return this.element
-    }
-
-    clearWarnings() {
-        this.input.classList.remove("is-valid")
-        this.input.classList.remove("is-invalid")
-    }
-    
-
-    clear() {
-        this.input.value = ""
-        this.clearWarnings()
-    }
-
-
-    get() {
-        let res = this.datamodel.check(this.input.value)
-        this.log(-1, "get: check", res)
-        if (res.value == null) { // something wen't wrong..
-            // set warning msg & valid/is-valid class
-            this.input.classList.remove("is-valid")
-            this.input.classList.add("is-invalid")
-            this.valid_msg.classList.remove("valid-feedback")
-            this.valid_msg.classList.add("invalid-feedback")
-            this.valid_msg.innerHTML = res.error
-            return null
-        }
-        else {
-            this.input.classList.add("is-valid")
-            this.input.classList.remove("is-invalid")
-            this.valid_msg.classList.add("valid-feedback")
-            this.valid_msg.classList.remove("invalid-feedback")
-            this.valid_msg.innerHTML = ''
-            return res.value
-        }
-    }
-    set(par) {
-        this.input.value = par
-    }
-}
-
-class CheckBoxFormFieldWidget extends FormFieldWidget { /*//DOC
-    An individual checkbox input field for the FormWidget
-    
-    Extends FormFieldWidget to implement a checkbox input instead of a text input
-    Used for boolean values like "active", "enabled", "subscribed", etc.
-    */
-    constructor(ctx) {
-        super(ctx)
-    }
-
-    createElement() { /*//DOC
-        Creates the HTML structure for a checkbox input field
-        Uses Bootstrap's form-check styling for proper checkbox display
-        */
-        this.log(-1, "checkboxformfieldwidget: datamodel:", this.datamodel)
-        let uniquename = this.unique_name + "-" + this.key
-        this.element = document.createElement("div");
-        this.element.classList.add("mb-3", "form-check");
-        
-        var line = `
-        <input type="checkbox" class="form-check-input" id="${uniquename}">
-        <label class="form-check-label" for="${uniquename}">${this.datamodel.label}</label>
-        <div class="valid-feedback">ok!</div>
-        `
-        
-        if (this.datamodel.help != undefined) {
-            line += `
-            <div id="${uniquename}Help" class="form-text">${this.datamodel.help}</div>
-            `
-        }
-        
-        this.element.innerHTML = line
-        
-        // cache the checkbox input and feedback message
-        this.input = this.element.getElementsByTagName("input").item(0)
-        this.valid_msg = this.element.getElementsByClassName("valid-feedback").item(0)
-    }
-
-    set(par) { /*//DOC
-        Sets the checkbox state based on the provided boolean value
-        
-        Arguments:
-        par - Boolean value to set the checkbox state
-        */
-        // Set the checkbox checked property based on the boolean value
-        this.input.checked = Boolean(par)
-    }
-
-    get() { /*//DOC
-        Gets the current checkbox state and passes it through the datamodel check function
-        
-        Returns:
-        Boolean value if valid, null if validation failed
-        */
-        // For checkboxes, we'll pass the checked state to the check function
-        let res = this.datamodel.check(this.input.checked)
-        this.log(-1, "get: check", res)
-        
-        if (res.value == null) {
-            // Something went wrong
-            this.input.classList.remove("is-valid")
-            this.input.classList.add("is-invalid")
-            this.valid_msg.classList.remove("valid-feedback")
-            this.valid_msg.classList.add("invalid-feedback")
-            this.valid_msg.innerHTML = res.error
-            return null
-        } else {
-            this.input.classList.add("is-valid")
-            this.input.classList.remove("is-invalid")
-            this.valid_msg.classList.add("valid-feedback")
-            this.valid_msg.classList.remove("invalid-feedback")
-            this.valid_msg.innerHTML = ''
-            return res.value
-        }
-    }
-
-    clear() { /*//DOC
-        Resets the checkbox to unchecked state and clears any validation styling
-        */
-        this.input.checked = false
-        this.clearWarnings()
-    }
-}
-
-
-class FormWidget extends Widget {  /*//DOC 
+class FormWidget extends Widget {  /*//DOC
     An adaptable input form as a popup window.
 
     The ctor takes in as an extra argument the title of the popup window
 
-    Uses FormFieldWidget internally as child widgets
+    Uses FormField instances (from formfield.js) as child widgets
 
     The "id" argument here does not try to attach to an existing HTML
     element in the DOM - feel free to use any id you wish (randomID is recommended)
@@ -192,65 +23,47 @@ class FormWidget extends Widget {  /*//DOC
         this.signals.update = new Signal(`Carries a json object corresponding to an updated record`);
     }
     datamodel_slot(datamodel) { /*//DOC
-        The datamodel to which the input form should adapt to.  
-        
+        The datamodel to which the input form should adapt to.
+
         Argument datamodel is a json object where the key is a unique name identifying
-        a column (say "name", "surname", etc.) and the value is a json object with the following scheme:
-        
-        {
-            label:  "label describing the column"
-            help :  "some help/information about the column",
-            check:  this.checkStr.bind(this) // i.e. a function checking the value of the data
-            type : "string"
+        a column (say "name", "surname", etc.) and the value is an instantiated FormField object.
+
+        Example:
+
+        import { FreeStringFormField, IntegerFormField, BooleanFormField } from './formfield.js';
+
+        datamodel = {
+            name: new FreeStringFormField("First Name", "Enter your first name"),
+            surname: new FreeStringFormField("Last Name", "Enter your last name"),
+            age: new IntegerFormField("Age", "Age in years"),
+            active: new BooleanFormField("Active", "Is this person active?")
         }
 
-        The check function shall return true/false, null/string-explaning-the-error, i.e. this json object:
-    
-        {
-            value: boolean true or false 
-            error: null or "string explaining the error"
-        }
-        
-        The type field indicates what kind of FormFieldWidget should be instantiated.
-        In this base implementation two different kinds of type -> FormFieldWidget mappings are provided:
+        widget.datamodel_slot(datamodel);
 
-        no type field defined or type = "string" -> FormFieldWidget
-        type = "boolean" -> CheckBoxFormFieldWidget
-
-        If your custom data source sends signals to datamodel_slot that has some other type fields, then be sure
-        to subclass this method and to create appropriate FormFieldWidget subclasses.
+        Each FormField instance knows how to:
+        - Render itself as HTML
+        - Validate its input (via its check() method)
+        - Get and set its value
+        - Display validation feedback
         */
         this.input_fields = new Object();
         this.element.innerHTML = '';
         this.datamodel = datamodel;
         console.log("datamodel_slot", datamodel)
         this.log(-1, "datamodel_slot", datamodel)
-        for (const [key, model] of Object.entries(this.datamodel)) {
 
-            if ((model.type == undefined) || (model.type == "string")) {
-                var input_field = new FormFieldWidget(
-                    {
-                        unique_name: this.unique_name, // e.g. "myInputForm"
-                        key: key, // i.e. e.g. "surname"
-                        datamodel: model // metadata description for "surname"
-                    }
-                )
-            }
-            else if (model.type == "boolean") {
-                var input_field = new CheckBoxFormFieldWidget(
-                    {
-                        unique_name: this.unique_name, // e.g. "myInputForm"
-                        key: key, // i.e. e.g. "surname"
-                        datamodel: model // metadata description for "surname"
-                    }
-                )
-            }
-            this.input_fields[key] = input_field
-            this.element.appendChild(input_field.getElement())
+        // Iterate over the datamodel and create the form fields
+        for (const [key, field] of Object.entries(this.datamodel)) {
+            // Each field is already an instantiated FormField object
+            // We just need to call createElement() on it
+            field.createElement(this.unique_name);
+            this.input_fields[key] = field;
+            this.element.appendChild(field.getElement());
         }
     }
     current_datum_slot(datum) { /*//DOC
-        Set's the current datum.  Each keys: same keys as in the datamodel 
+        Set's the current datum.  Each keys: same keys as in the datamodel
         (as in datamodel_slot). Value: the value of the field.
         */
         if (this.datamodel == null) {
@@ -268,10 +81,10 @@ class FormWidget extends Widget {  /*//DOC
         /*
         run over input fields, previously created by calling
         datamodel_slot and fills input fields values from current_datum
-         
+
         current_datum may have "hidden" fields (like uuid) not described
         by the datamodel: these are not visible / editable in the form fields
-         
+
         you could also subclass a simplified version that hard-codes
         the input fields
         */
@@ -279,7 +92,13 @@ class FormWidget extends Widget {  /*//DOC
             // put into the form all fields defined by the datamodel
             let value = this.current_datum[key]
             if (value == undefined ) {
-                this.err("current_datum_slot: got unexpected key", key)
+                // this.err("current_datum_slot: got unexpected key", key)
+                // this is perfectly normal:
+                // for example: the form represent a create op
+                // keys correspond to create op
+                // but we're using it also for update
+                // the datum for update is missing for example the passwd field (as it should)
+                this.log(-1, "current_datum_slot: datum is missing the key", key)
             }
             else {
                 input_field.set(datum[key])
@@ -289,7 +108,7 @@ class FormWidget extends Widget {  /*//DOC
     create_slot() { /*//DOC Opens the form dialog with empty fields
         */
         if (this.datamodel == null) {
-            this.err("current_datum_slot: please call datamodel_slot first");
+            this.err("create_slot: please call datamodel_slot first");
             return;
         }
         this.current_datum = null;
@@ -302,7 +121,7 @@ class FormWidget extends Widget {  /*//DOC
         call to current_datum_slot
         */
         if (this.datamodel == null) {
-            this.err("current_datum_slot: please call datamodel_slot first");
+            this.err("update_slot: please call datamodel_slot first");
             return;
         }
         if (this.current_datum == null) {
@@ -320,17 +139,17 @@ class FormWidget extends Widget {  /*//DOC
     }
     createElement() {
         /* Here we use the bootstrap modal API that assumes
-        that the API pops up from a certain button 
+        that the API pops up from a certain button
         (instead we want it to pop-up from a signal!)
-        
+
         It would actually be better to do this without the bootstrap API
         But here we use bootstrap, so be it.
 
         So first, we need to demangle the bootstrap modal API:
         In order for the JS API to work, some html must first
         be inserted into the DOM, like this:
-        
-        <div class="modal fade" id="exampleModal" tabindex="-1" 
+
+        <div class="modal fade" id="exampleModal" tabindex="-1"
         aria-labelledby="exampleModalLabel" aria-hidden="true">
         </div>
         */

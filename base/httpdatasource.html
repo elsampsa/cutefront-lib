@@ -68,19 +68,20 @@
         import { QueryParamPagination } from './pagination.js';
         import { setupMockServer } from './mockserver.js';
         import { DataModel } from './datamodel.js';
+        import { FreeStringFormField, EmailFormField } from './formfield.js';
 
-        // Simple data model
+        // Simple data model using FormField instances
         class TestDataModel extends DataModel {
             constructor() {
                 super();
                 this.create = {
-                    name: { label: "Name", check: this.checkStr },
-                    email: { label: "Email", check: this.checkStr },
+                    name: new FreeStringFormField("Name", "User's name"),
+                    email: new EmailFormField("Email", "User's email address"),
                 };
                 this.read = this.create;
                 this.update = this.create;
             }
-            
+
             getMockData(n) {
                 const items = [];
                 for (let i = 0; i < n; i++) {

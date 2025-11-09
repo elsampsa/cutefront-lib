@@ -17,21 +17,19 @@ class CardWidget extends Widget { /*//DOC
     }
     datamodel_slot(datamodel) { /*//DOC
         Initialize / adapt this widget to a certain data column scheme.
+
         Argument datamodel is a json object where the key is a unique name identifying
-        a column (say "name", "surname", etc.) and the value is a json object with the following scheme:
+        a column (say "name", "surname", etc.) and the value is a FormField instance.
 
-        {
-            label:  "label describing the column"
-            help :  "some help/information about the column",
-            check:  this.checkStr.bind(this) // i.e. a function checking the value of the data
+        Example:
+        import { FreeStringFormField, IntegerFormField } from './formfield.js';
+
+        datamodel = {
+            name: new FreeStringFormField("Name", "Person's name"),
+            age: new IntegerFormField("Age", "Person's age")
         }
 
-        The check function shall return true/false, null/string-explaning-the-error, i.e. this json object:
-    
-        {
-            value: boolean true or false 
-            error: null or "string explaining the error"
-        }
+        widget.datamodel_slot(datamodel);
         */
         this.log(-1, "datamodel_slot", datamodel)
         this.datamodel=datamodel;

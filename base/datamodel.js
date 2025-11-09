@@ -1,94 +1,72 @@
-class DataModel { /*//DOC
-    Once can define what each datum field in each of the CRUD operations looks like
-    together with a checker function that can be propagated to downstream widgets so they now
-    how to check those fields
-    */
+/*
+DataModel defines the structure and validation for data records used in CRUD operations.
+
+DataModels contain instantiated FormField objects that encapsulate validation logic.
+
+Example:
+
+import { FreeStringFormField, IntegerFormField, EmailFormField } from './formfield.js';
+
+class UserDataModel extends DataModel {
     constructor() {
-        // An example datamodel - must be overridden
+        super();
         this.create = {
-            name: {
-                label: "First Name",
-                help: "The first name of the person",
-                check: this.checkStr
-            },
-            surname: {
-                label: "Last Name", 
-                help: "The surname of the person",
-                check: this.checkStr
-            },
-            email: {
-                label: "Email",
-                help: "The email address",
-                check: this.checkStr
-            },
-            age: {
-                label: "Age",
-                help: "Age of the person in years",
-                check: this.checkNumber
-            }
+            name: new FreeStringFormField("First Name", "The first name of the person"),
+            surname: new FreeStringFormField("Last Name", "The surname of the person"),
+            email: new EmailFormField("Email", "The email address"),
+            age: new IntegerFormField("Age", "Age in years")
         };
         this.read = this.create;
         this.update = this.create;
     }
-    
-    getMockData(n) { // returns a list of mock data of n elements, a single element or null
+
+    getMockData(n) {
+        return [
+            {uuid: "1", name: "John", surname: "Doe", email: "john@example.com", age: 30},
+            {uuid: "2", name: "Jane", surname: "Smith", email: "jane@example.com", age: 25}
+        ];
+    }
+}
+*/
+
+import { FreeStringFormField, IntegerFormField, EmailFormField } from './formfield.js';
+
+class DataModel { /*//DOC
+    Base class for defining data models used in CRUD operations.
+
+    Subclasses should define:
+    - this.create: FormField instances for create operation
+    - this.read: FormField instances for read operation (often same as create)
+    - this.update: FormField instances for update operation (often same as create)
+    - getMockData(n): returns mock data for testing
+
+    DataModels use instantiated FormField objects that encapsulate both
+    field rendering and validation logic.
+    */
+    constructor() {
+        // Example datamodel - subclasses should override this
+        this.create = {
+            name: new FreeStringFormField("First Name", "The first name of the person"),
+            surname: new FreeStringFormField("Last Name", "The surname of the person"),
+            email: new EmailFormField("Email", "The email address"),
+            age: new IntegerFormField("Age", "Age in years")
+        };
+        this.read = this.create;
+        this.update = this.create;
+    }
+
+    getMockData(n) { /*//DOC
+        Returns a list of mock data records.
+
+        Arguments:
+        n - Number of records to return (can be ignored by implementation)
+
+        Returns:
+        Array of data records, or empty array if no mock data available.
+
+        Subclasses should override this method.
+        */
         return [];
-    }
-
-    // TODO: add checkEmail method
-
-    checkStr(par) {
-        const str = String(par);
-        if (str.length < 1) {
-            return { value: null, error: "Empty" };
-        }
-        return { value: str, error: null };
-    }
-    
-    checkNumber(par) {
-        const str = String(par);
-        if (str.length < 1) {
-            return { value: null, error: "Empty" };
-        }
-        const num = Number(str);
-        if (isNaN(num)) {
-            return { value: null, error: "Numeric value required" };
-        }
-        return { value: num, error: null };
-    }
-
-    checkBool(par) {
-        // Handle null/undefined
-        if (par === null || par === undefined) {
-            return { value: null, error: "Empty" };
-        }
-        
-        // Handle actual booleans
-        if (typeof par === 'boolean') {
-            return { value: par, error: null };
-        }
-        
-        // Handle numbers
-        if (typeof par === 'number') {
-            if (par === 0) return { value: false, error: null };
-            if (par === 1) return { value: true, error: null };
-            return { value: null, error: "Invalid number - must be 0 or 1" };
-        }
-        
-        // Handle strings
-        if (typeof par === 'string') {
-            const trimmed = par.trim().toLowerCase();
-            if (trimmed === '') {
-                return { value: null, error: "Empty" };
-            }
-            if (trimmed === 'true') return { value: true, error: null };
-            if (trimmed === 'false') return { value: false, error: null };
-            if (trimmed === '1') return { value: true, error: null };
-            if (trimmed === '0') return { value: false, error: null };
-            return { value: null, error: "Invalid string - must be 'true', 'false', '0', or '1'" };
-        }
-        
-        return { value: null, error: "Invalid type" };
     }
 }
 

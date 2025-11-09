@@ -89,6 +89,7 @@ import { HTTPDataSource } from './httpdatasource.js';
 import { AuthModel } from './authmodel.js';
 import { QueryParamPagination } from './pagination.js';
 import { setupMockServer } from './mockserver.js';
+import { FreeStringFormField, IntegerFormField, EmailFormField } from './formfield.js';
 
 // Global variables
 let dataSourceWidget = null;
@@ -97,33 +98,17 @@ let mockServer = null;
 class MyDataModel extends DataModel {
     constructor() {
         super();
-        // Datamodels for CRU operations
+        // Datamodels for CRU operations using FormField instances
         this.create = {
-            name: {
-                label: "First Name",
-                help: "The first name of the person",
-                check: this.checkStr
-            },
-            surname: {
-                label: "Last Name", 
-                help: "The surname of the person",
-                check: this.checkStr
-            },
-            email: {
-                label: "Email",
-                help: "The email address",
-                check: this.checkStr
-            },
-            age: {
-                label: "Age",
-                help: "Age of the person in years",
-                check: this.checkNumber
-            }
+            name: new FreeStringFormField("First Name", "The first name of the person"),
+            surname: new FreeStringFormField("Last Name", "The surname of the person"),
+            email: new EmailFormField("Email", "The email address"),
+            age: new IntegerFormField("Age", "Age of the person in years")
         };
         this.read = this.create;
         this.update = this.create;
     }
-    
+
     getMockData(n) { // example mock data
         var lis = []
         for (var i = 0; i < n; i++) {

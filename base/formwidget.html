@@ -2,9 +2,13 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <title>ListWidget Example</title>
+        <title>FormWidget Example</title>
         <link
             href="../bootstrap-5.2.3-dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="../include/bootstrap-icons/css/bootstrap-icons.min.css"
             rel="stylesheet"
         />
     </head>
@@ -19,62 +23,7 @@
     <script src="../bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
 
     <script type="module">
-        function checkStr(par) {
-            // returns value, error-msg
-            const str = String(par);
-            if (str.length < 1) {
-                return { value: null, error: "Empty" };
-            }
-            return { value: str, error: null };
-        }
-
-        function checkNumber(par) {
-            const str = String(par);
-            if (str.length < 1) {
-                return { value: null, error: "Empty" };
-            }
-            const num = Number(str);
-            if (isNaN(num)) {
-                return { value: null, error: "Numeric value required" };
-            }
-            return { value: num, error: null };
-        }
-
-        function checkBoolean(par) {
-            return { value: Boolean(par), error: null };
-        }
-
         // mock data
-        var datamodel = {
-            // datamodel has metadata of all data fields
-            name: {
-                label: "First Name",
-                help: "The first name of the person",
-                check: checkStr,
-            },
-            surname: {
-                label: "Last Name",
-                help: "The surname of the person",
-                check: checkStr,
-            },
-            email: {
-                label: "Email",
-                help: "the email",
-                check: checkStr,
-            },
-            age: {
-                label: "Age",
-                help: "Age of the person in years",
-                check: checkNumber,
-            },
-            coolness: {
-                label: "is this person cool?",
-                help: "cool or not",
-                type: "boolean",
-                check: checkBoolean,
-            },
-        };
-
         var data = [
             {
                 uuid: "123456",
@@ -83,6 +32,10 @@
                 email: "john.doe@gmail.com",
                 age: 51,
                 coolness: true,
+                bio: "A cool person who loves coding.",
+                password: "secret123",
+                password_confirm: "secret123",
+                country: "us"
             },
             {
                 uuid: "654321",
@@ -91,21 +44,65 @@
                 email: "joanna.doe@gmail.com",
                 age: 18,
                 coolness: false,
+                bio: "Just starting out in the tech world.",
+                password: "mypass456",
+                password_confirm: "mypass456",
+                country: "uk"
             },
         ];
 
         import { DummyWidget } from "./widget.js";
         import { FormWidget } from "./formwidget.js";
+        import {
+            FreeStringFormField,
+            IntegerFormField,
+            BooleanFormField,
+            EmailFormField,
+            TextAreaFormField,
+            SelectFormField
+        } from "./formfield.js";
+        import { PasswordFormField, SimplePasswordRequirement } from "./password.js";
+
         var dummy_widget = new DummyWidget();
         var widget = new FormWidget("test-element", "User Data");
 
         widget.setLogLevel(-1); // debugging
 
         // connect signals
-        widget.signals.create.connect(() => dummy_widget.slot("create"));
-        widget.signals.update.connect(() => dummy_widget.slot("update"));
+        widget.signals.create.connect((datum) => dummy_widget.slot(datum));
+        widget.signals.update.connect((datum) => dummy_widget.slot(datum));
+
+        // Create password fields with friend relationship and requirement
+        var passwordField = new PasswordFormField("Password", "Enter your password")
+            .setRequirement(new SimplePasswordRequirement(8));
+        var passwordConfirmField = new PasswordFormField("Confirm Password", "Re-enter password", {friend: passwordField});
+
+        // Create select field
+        var countryField = new SelectFormField("Country", "Select your country");
+
+        // Create the datamodel using instantiated FormField objects
+        var datamodel = {
+            name: new FreeStringFormField("First Name", "The first name of the person"),
+            surname: new FreeStringFormField("Last Name", "The surname of the person"),
+            email: new EmailFormField("Email", "The email address"),
+            age: new IntegerFormField("Age", "Age of the person in years"),
+            bio: new TextAreaFormField("Biography", "Tell us about yourself", {rows: 5}),
+            coolness: new BooleanFormField("Is this person cool?", "Cool or not"),
+            password: passwordField,
+            password_confirm: passwordConfirmField,
+            country: countryField
+        };
 
         widget.datamodel_slot(datamodel); // tell form what data to expect
+
+        // Set options for the select field (simulating data from backend)
+        countryField.set_options_slot([
+            {value: "us", label: "United States"},
+            {value: "uk", label: "United Kingdom"},
+            {value: "ca", label: "Canada"},
+            {value: "au", label: "Australia"},
+            {value: "de", label: "Germany"}
+        ]);
 
         let create = document.getElementById("create");
         let update = document.getElementById("update");
