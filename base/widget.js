@@ -503,7 +503,14 @@ class Widget { /* The Base class implementation for CuteFront Widgets
         if (Object.keys(this.components).length > 0) {
             api["components"] = subWidgetRecurse(this.components);
         }
-        
+
+        if (this.input_fields && Object.keys(this.input_fields).length > 0) {
+            api["input_fields"] = Object();
+            for (const [key, field] of Object.entries(this.input_fields)) {
+                api.input_fields[key] = field.constructor.name;
+            }
+        }
+
         return api;
     }
 }

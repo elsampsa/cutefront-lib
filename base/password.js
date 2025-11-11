@@ -62,6 +62,52 @@ class SimplePasswordRequirement extends PasswordRequirement { /*//DOC
     }
 }
 
+class StrongPasswordRequirement extends PasswordRequirement { /*//DOC
+    Strong password requirement: minimum 8 characters with uppercase, lowercase, number and special character.
+    */
+    constructor(minLength = 8) {
+        super();
+        this.minLength = minLength;
+    }
+
+    check(password) { /*//DOC
+        Validates that password meets strong requirements:
+        - At least minLength characters (default 8)
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one digit
+        - At least one special character
+
+        Returns:
+        {valid: true, error: null} if password meets all requirements
+        {valid: false, error: "message"} if password fails any requirement
+        */
+        const str = String(password);
+
+        if (str.length < this.minLength) {
+            return {
+                valid: false,
+                error: `Password must be at least ${this.minLength} characters`
+            };
+        }
+
+        // Check for uppercase, lowercase, digit, and special character
+        const hasUppercase = /[A-Z]/.test(str);
+        const hasLowercase = /[a-z]/.test(str);
+        const hasDigit = /\d/.test(str);
+        const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(str);
+
+        if (!hasUppercase || !hasLowercase || !hasDigit || !hasSpecial) {
+            return {
+                valid: false,
+                error: 'Password must include uppercase, lowercase, number and special character'
+            };
+        }
+
+        return { valid: true, error: null };
+    }
+}
+
 class PasswordFormField extends BaseFormField { /*//DOC
     A form field for password input with a visibility toggle button.
 
@@ -188,6 +234,34 @@ class PasswordFormField extends BaseFormField { /*//DOC
 
         return { value: str, error: null };
     }
+
+    fillValid() { /*//DOC
+        Fills the field with valid password test data.
+        Adapts based on whether a requirement is set.
+        */
+        if (this.requirement != null) {
+            // If there's a requirement, use a password that meets it
+            // StrongPasswordRequirement needs: uppercase, lowercase, digit, special char
+            this.set("ValidPass123!");
+        } else {
+            // Simple password without requirement
+            this.set("password123");
+        }
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid password test data.
+        If there's a requirement, uses a password that fails it.
+        Otherwise, uses empty string.
+        */
+        if (this.requirement != null) {
+            // Password that fails requirement (too short, no special chars, etc.)
+            this.set("short");
+        } else {
+            // Empty password (always invalid)
+            this.set("");
+        }
+    }
 }
 
-export { PasswordRequirement, SimplePasswordRequirement, PasswordFormField };
+export { PasswordRequirement, SimplePasswordRequirement, StrongPasswordRequirement, PasswordFormField };

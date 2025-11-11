@@ -201,6 +201,18 @@ class FormWidget extends Widget {  /*//DOC
     clearWarnings () {
         Object.entries(this.input_fields).forEach(([key, input_field])=> input_field.clearWarnings());
     }
+    fillAllValid() { /*//DOC
+        Fills all form fields with valid test data for debugging/testing purposes.
+        Each field's fillValid() method provides appropriate valid data.
+        */
+        Object.entries(this.input_fields).forEach(([key, input_field])=> input_field.fillValid());
+    }
+    fillAllInvalid() { /*//DOC
+        Fills all form fields with invalid test data for debugging/testing purposes.
+        Each field's fillInvalid() method provides appropriate invalid data.
+        */
+        Object.entries(this.input_fields).forEach(([key, input_field])=> input_field.fillInvalid());
+    }
     checkInput() { // checks input & if ok, sends signals with the new/updated data
         this.log(-1, "checkInput")
         var create = false; // create or update?

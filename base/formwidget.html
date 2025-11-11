@@ -19,6 +19,8 @@
         <button id="update">Update</button>
         <button id="set-datum">Send/set mock data</button>
         <button id="clear-datum">Send/set null data</button>
+        <button id="fill-valid">Fill Valid Data</button>
+        <button id="fill-invalid">Fill Invalid Data</button>
     </body>
     <script src="../bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
 
@@ -108,6 +110,8 @@
         let update = document.getElementById("update");
         let set = document.getElementById("set-datum");
         let clear = document.getElementById("clear-datum");
+        let fillValid = document.getElementById("fill-valid");
+        let fillInvalid = document.getElementById("fill-invalid");
 
         create.onclick = () => {
             widget.create_slot();
@@ -120,6 +124,12 @@
         };
         clear.onclick = () => {
             widget.current_datum_slot(null);
+        };
+        fillValid.onclick = () => {
+            widget.fillAllValid();
+        };
+        fillInvalid.onclick = () => {
+            widget.fillAllInvalid();
         };
 
         window.genDocs = ["widget"];

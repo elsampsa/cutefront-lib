@@ -99,6 +99,22 @@ class BaseFormField { /*//DOC
         this.clearWarnings();
     }
 
+    fillValid() { /*//DOC
+        Fills the field with valid test data for debugging/testing purposes.
+        Base implementation provides generic valid text.
+        Subclasses should override with more appropriate data.
+        */
+        this.set("Valid text");
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid test data for debugging/testing purposes.
+        Base implementation provides empty string (invalid for most fields).
+        Subclasses should override with more appropriate invalid data.
+        */
+        this.set("");
+    }
+
     get() { /*//DOC
         Gets the current value from the input field and validates it.
 
@@ -235,6 +251,18 @@ class IntegerFormField extends BaseFormField { /*//DOC
         }
         return { value: num, error: null };
     }
+
+    fillValid() { /*//DOC
+        Fills the field with valid integer test data.
+        */
+        this.set(42);
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid test data (not an integer).
+        */
+        this.set("not a number");
+    }
 }
 
 class BooleanFormField extends BaseFormField { /*//DOC
@@ -325,6 +353,20 @@ class BooleanFormField extends BaseFormField { /*//DOC
         */
         return { value: Boolean(value), error: null };
     }
+
+    fillValid() { /*//DOC
+        Fills the field with valid boolean test data (checked).
+        */
+        this.set(true);
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid boolean test data.
+        Note: For checkboxes, all values are technically valid.
+        This sets it to unchecked (false) as the "less common" state.
+        */
+        this.set(false);
+    }
 }
 
 class EmailFormField extends BaseFormField { /*//DOC
@@ -385,6 +427,18 @@ class EmailFormField extends BaseFormField { /*//DOC
 
         return { value: str, error: null };
     }
+
+    fillValid() { /*//DOC
+        Fills the field with valid email test data.
+        */
+        this.set("test@example.com");
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid email test data.
+        */
+        this.set("not-an-email");
+    }
 }
 
 class TextAreaFormField extends BaseFormField { /*//DOC
@@ -441,6 +495,18 @@ class TextAreaFormField extends BaseFormField { /*//DOC
         }
 
         return { value: str, error: null };
+    }
+
+    fillValid() { /*//DOC
+        Fills the field with valid multi-line text test data.
+        */
+        this.set("This is a valid\nmulti-line text\nfor testing purposes.");
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid test data (empty).
+        */
+        this.set("");
     }
 }
 
@@ -522,6 +588,20 @@ class BaseFormFieldWidget extends Widget { /*//DOC
         Subclasses must implement this.
         */
         throw new Error("createElement() must be implemented by subclass");
+    }
+
+    fillValid() { /*//DOC
+        Fills the field with valid test data for debugging/testing purposes.
+        Subclasses should override with appropriate data.
+        */
+        throw new Error("fillValid() must be implemented by subclass");
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid test data for debugging/testing purposes.
+        Subclasses should override with appropriate invalid data.
+        */
+        throw new Error("fillInvalid() must be implemented by subclass");
     }
 }
 
@@ -691,6 +771,23 @@ class SelectFormField extends BaseFormFieldWidget { /*//DOC
         }
 
         return { value: str, error: null };
+    }
+
+    fillValid() { /*//DOC
+        Fills the field with valid test data (first available option).
+        Note: Requires options to be set via set_options_slot() first.
+        */
+        if (this.options.length > 0) {
+            this.set(this.options[0].value);
+        } else {
+            this.log(-1, "fillValid: No options available, cannot fill");
+        }
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid test data (empty selection).
+        */
+        this.set("");
     }
 }
 
