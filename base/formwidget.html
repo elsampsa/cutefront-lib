@@ -21,6 +21,7 @@
         <button id="clear-datum">Send/set null data</button>
         <button id="fill-valid">Fill Valid Data</button>
         <button id="fill-invalid">Fill Invalid Data</button>
+        <button id="activate-debug">Activate Debug Mode</button>
     </body>
     <script src="../bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
 
@@ -112,6 +113,7 @@
         let clear = document.getElementById("clear-datum");
         let fillValid = document.getElementById("fill-valid");
         let fillInvalid = document.getElementById("fill-invalid");
+        let activateDebug = document.getElementById("activate-debug");
 
         create.onclick = () => {
             widget.create_slot();
@@ -126,10 +128,13 @@
             widget.current_datum_slot(null);
         };
         fillValid.onclick = () => {
-            widget.fillAllValid();
+            widget.fillValid();
         };
         fillInvalid.onclick = () => {
-            widget.fillAllInvalid();
+            widget.fillInvalid();
+        };
+        activateDebug.onclick = () => {
+            widget.activate_debug_slot();
         };
 
         window.genDocs = ["widget"];

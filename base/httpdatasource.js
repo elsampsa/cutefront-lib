@@ -6,23 +6,33 @@ class HTTPDataSource extends DataSource {
         this.baseUrl = '';
         this.authModel = null;
         this.paginationStrategy = null;
+        this.networkSimulator = null;
     }
-    
+
     setBaseUrl(url) {
         this.baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
         return this;
     }
-    
+
     setAuthModel(authModel) {
         this.authModel = authModel;
         return this;
     }
-    
+
     setPaginationStrategy(strategy) {
         this.paginationStrategy = strategy;
         return this;
     }
-    
+
+    setNetworkSimulator(simulator) { /*//DOC
+        Sets a network simulator for testing purposes.
+        :param simulator: NetworkSimulator instance (or null to disable)
+        :returns: this (for method chaining)
+        */
+        this.networkSimulator = simulator;
+        return this;
+    }
+
     // ===== HELPER METHODS =====
 
     _buildRequestConfig(endpoint, options) { /*//DOC
@@ -65,14 +75,42 @@ class HTTPDataSource extends DataSource {
 
     async _executeFetch(requestConfig) { /*//DOC
         Executes the actual fetch request.
+        If a network simulator is set, it will be used to potentially modify the request behavior.
+        Implements timeout using AbortController.
         :param requestConfig: Request config object with {url, method, headers, body}
         :returns: Response object
+        :throws: AbortError if request times out
         */
-        return await fetch(requestConfig.url, {
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        const fetchFn = (signal) => fetch(requestConfig.url, {
             method: requestConfig.method || 'GET',
             headers: requestConfig.headers,
-            body: requestConfig.body
+            body: requestConfig.body,
+            signal: signal || controller.signal  // Use provided signal or our timeout controller
         });
+
+        try {
+            if (this.networkSimulator) {
+                return await this.networkSimulator.execute(fetchFn);
+            }
+
+            return await fetchFn(controller.signal);
+        } catch (error) {
+            // Check if this was a timeout
+            if (error.name === 'AbortError') {
+                throw {
+                    message: `Request timed out after ${this.timeout}ms`,
+                    status: 408,  // HTTP 408 Request Timeout
+                    body: { detail: 'Request timeout' }
+                };
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeoutId);
+        }
     }
 
     async _handleAuthRetry(requestConfig, response) { /*//DOC

@@ -1,3 +1,5 @@
+## Synopsis
+
 Hi Claude!
 
 Let's do some development with CuteFront.  It is a pure-javascript and HTML framework.  It is similar to the Qt desktop framework.  
@@ -25,7 +27,7 @@ from html.
 
 The idea is, that widgets have their own, well-separated and documented API and they only interact with the outside world using signals and slots.
 
-When user interacts with a widget (say, with a click or typing something), the widget's internal state is changed (say, contents of a text field or a radio button state).  This interaction can result in a signal being emitted.
+When user interacts with a widget (say, with a click or typing something), the widget's **internal state is changed** (say, contents of a text field or a radio button state).  This interaction can result in a signal being emitted.
 
 When a widget receives a signal to a slot, this typically results in its internal state (and its HTML) being changed.
 
@@ -33,6 +35,8 @@ The state of the widget is cached in widget's HTML elements (say, the state of a
 way to maintain the state.  If needed, some part of the state can also be cached to internal member variables (say, `this.some_boolean_flag`, etc.).
 
 When creating single-page applications with complex interactions between widgets, the signals and slots between widgets instances are explicitly connected in the main html file.
+
+## Gold-standard example widget
 
 Now I will give you an example how to define a basic widget class `HateLike`.
 
@@ -44,12 +48,14 @@ You MUST read at least these two files:
 ./hatelike.js
 ./hatelike.html
 
+Please READ THEM NOW.
+
 Next, let's take a look at some widgets in the base library.  Remember that CuteFront is still a work in progress and some of the files
 might not have all the correct docstrings, etc. but we want to get there.
 
 Said that, these are widget classes in the base library you should take a look at:
 
-```
+```bash
 ../base/group.js
 ../base/formwidget.js
 ../base/listwidget.js
@@ -58,7 +64,57 @@ Said that, these are widget classes in the base library you should take a look a
 ```
 (and the corresponding html files).
 
-How data is received from the backend and inserted to the widgets, is handled by datasource widgets.  Please see these files:
+## Subwidgets and subobjects
+
+Widgets can have subwidgets (i.e. widgets enclosed in a "mother" widget), and subwidgets their own subwidgets, etc. in a hierarchical manner.
+
+Subwidgets that can/should be accessed by the API user are grouped under the `widgets` namespace, i.e. in a `GroupWidget` instance you could access them like this:
+`groupWidget.widgets.tabWidget1` and then deeper into the hierarchy like this: `groupWidget.widgets.tabWidget1.widgets.someOtherSubwidgetInstance`, etc.
+
+Here are all subobjects/functions the user can access, grouped under their corresponding namespaces:
+
+- subwidgets under the `widgets` namespace
+- all methods ending with the name `_slot`
+- signals under the `signals` namespace
+- Input fields under the `input_fields` namespace
+
+There are also subobjects/widgets not supposed to be accessed by the API user.
+
+Take for example the ListWidget that owns ListItemWidget(s).  ListWidget creates child widgets on-the-fly and caches them into a list.  It can then query the ListItemWidget(s) HTML DOM element from their ``getElement()`` and attach it to it's own DOM tree / remove it from it's own DOM tree when necessary.  For more details, take a look into `../base/listwidget.js`.
+
+For an example on how to compose a page of complex nested widgets, please take a look into `./landing.html` and `./layout.html`.  
+
+The complex hierarchy of a widget can be visualized with the `cute-get-api-tree` tool (which you might want to use).
+
+For example, in `./landing.html` we have this line:
+```html
+window.genDocs = ["container", "itemDataSourceWidget","userDataSourceWidget","authUserFloaterWidget"]
+```
+Now we can do this:
+```bash
+cute-get-api-tree landing.html
+```
+It takes the widget instances named "container", "itemDataSourceWidget", etc., dumps their API (signals, slots, subwidgets, etc.) into a hierarchical yaml file into the stdout.
+
+## Forms and fields
+
+When creating forms for user input data, we have several options:
+
+- Create the form from scratch as an independent widget
+- Create the form from scratch, but use ready-made `FormField` classes from `../base/formfield.js`
+- Define data structures and necessary `FormField` classes in the `DataModel` class (see below) for adaptable input forms
+
+To make testing easier, each `FormField` has `fillValid()` and `fillInvalid()` methods to fill them with valid or invalid data.
+These can then be used by the composite/mother widgets to fill individual fields automatically for testing purposes.
+
+Composite widgets should have slot `set_debug_slot()`.  Calling this slot will set the widget into a debug state that renders two extra
+buttons "fillValid" and "fillInvalid" that are used to fill in the form with in/valid data.
+
+More complex testing panels can be implemented in the main html file itself.
+
+## Backend data
+
+How data is received from the backend and inserted to the widgets, is handled by datasource widgets.  Please keep an eye on these files:
 ```
 ../base/datamodel.js : `DataModel` defines the structure of the data records.  
 ../base/datasource.js : `DataSource` defines CRUD operations.
@@ -78,29 +134,10 @@ setBaseUrl(url)
 setAuthModel(authModel) 
 setPaginationStrategy(strategy) 
 ```
-What we typically do, is to the create mock data sources that imitate the actual datasources and then finally we switch from the mock
+What we typically do, is to the create mock data sources that imitate the actual datasources and then finally switch from the mock
 to the actual (http(s)) datasource.
 
-Now, let's talk about child/parent widgets.
-
-A typical example would be a list (= basic / parent widget) that owns list items (= child widgets).  In that case, the parent widget would create child widgets on-the-fly and cache them into a list.  It can then query it's child widget's HTML DOM element from their ``getElement()`` and attach it to it's own DOM tree / remove it from it's own DOM tree when necessary, etc.  That `../base/listwidget.js` is a good example.
-
-How we can compose a page of complex widgets?  Please take a look into `./landing.html` and `./layout.html`.
-In landing.html we have also the possibility to test semi-automatically the whole page.
-
-In `./landing.html` you have this line:
-```html
-window.genDocs = ["container", "itemDataSourceWidget","userDataSourceWidget","authUserFloaterWidget"]
-```
-Now we can do this:
-```bash
-cute-get-api-tree filename.html
-```
-It takes the widget instances named "container", "itemDataSourceWidget", etc., dumps their API (signals and slots) into stdout in yaml format and also,
-hierarcically, does the same for their subwidgets (internal `.widgets` objects).
-
-You can use that definition of `window.genDocs` together with `cute-get-api-tree` to get a comprehensive look into the signal and slot APIs of all widgets.
-It can be handier/cheaper than reading all the widget (sub)class definitions.
+## Conclusions
 
 I hope you got it!  Briefly, I will ask you for widgets.  Please, always provide me with both the .js and accompanying .html files.  
 

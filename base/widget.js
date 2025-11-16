@@ -177,6 +177,7 @@ class Widget { /* The Base class implementation for CuteFront Widgets
         this.signals = new Object(); // i.e. json
         this.widgets = new Object(); // subwidgets of this widget the API user can access directly
         this.components = new Object(); // subwidgets/other objects of this widget that the API user should not access directly
+        this.input_fields = new Object(); // FormField instances for widgets that use forms
         this.createSignals();
         // this._enhanceSlotMethods(); // add class info to the _slot methods // TODO: does this work or not?
     }
@@ -347,6 +348,29 @@ class Widget { /* The Base class implementation for CuteFront Widgets
                 this.element.classList.remove(classname)
             })
         }
+    }
+    fillValid() { /*//DOC
+        Fills all form fields with valid test data for debugging/testing purposes.
+        Iterates through all input_fields and calls their fillValid() methods.
+        */
+        Object.values(this.input_fields).forEach(input_field => input_field.fillValid());
+    }
+    fillInvalid() { /*//DOC
+        Fills all form fields with invalid test data for debugging/testing purposes.
+        Iterates through all input_fields and calls their fillInvalid() methods.
+        */
+        Object.values(this.input_fields).forEach(input_field => input_field.fillInvalid());
+    }
+    activate_debug_slot() { /*//DOC
+        Activates debug mode by cascading to all subwidgets in this.widgets.
+        Subclasses can override this and call super.activate_debug_slot() first,
+        then add their own debug functionality.
+        */
+        Object.values(this.widgets).forEach(widget => {
+            if (widget instanceof Widget) {
+                widget.activate_debug_slot();
+            }
+        });
     }
     close() { // close this widget: remove all signal connections, delete state variables and finally the html element
         for (const [name, signal] of Object.entries(this.signals)) {

@@ -132,10 +132,59 @@ class FormWidget extends Widget {  /*//DOC
         this.clearWarnings(); // cleanup warnings
         this.bootstrap_modal.toggle(); // show form
     }
+    activate_debug_slot() { /*//DOC
+        Activates debug mode by adding two buttons at the end of the form:
+        "fillValid" and "fillInvalid" for interactive testing.
+        These buttons call this.fillValid() and this.fillInvalid() respectively.
+        */
+        super.activate_debug_slot(); // cascade to subwidgets first
+
+        if (this.element == null) {
+            this.err("activate_debug_slot: element is null");
+            return;
+        }
+        if (this.debug_buttons_added) {
+            this.log(-1, "activate_debug_slot: debug buttons already added");
+            return;
+        }
+
+        // Create container for debug buttons
+        const debugContainer = document.createElement("div");
+        debugContainer.classList.add("mt-3", "d-flex", "gap-2");
+
+        // Create fillValid button
+        const fillValidButton = document.createElement("button");
+        fillValidButton.type = "button";
+        fillValidButton.classList.add("btn", "btn-success", "btn-sm");
+        fillValidButton.textContent = "fillValid";
+        fillValidButton.onclick = () => {
+            this.fillValid();
+        };
+
+        // Create fillInvalid button
+        const fillInvalidButton = document.createElement("button");
+        fillInvalidButton.type = "button";
+        fillInvalidButton.classList.add("btn", "btn-danger", "btn-sm");
+        fillInvalidButton.textContent = "fillInvalid";
+        fillInvalidButton.onclick = () => {
+            this.fillInvalid();
+        };
+
+        // Add buttons to container
+        debugContainer.appendChild(fillValidButton);
+        debugContainer.appendChild(fillInvalidButton);
+
+        // Append to form element
+        this.element.appendChild(debugContainer);
+
+        this.debug_buttons_added = true;
+        this.log(-1, "activate_debug_slot: debug buttons added");
+    }
     createState() {
         this.datamodel = null;
         this.current_datum = null;
         this.input_fields = new Object();
+        this.debug_buttons_added = false;
     }
     createElement() {
         /* Here we use the bootstrap modal API that assumes
@@ -200,18 +249,6 @@ class FormWidget extends Widget {  /*//DOC
     }
     clearWarnings () {
         Object.entries(this.input_fields).forEach(([key, input_field])=> input_field.clearWarnings());
-    }
-    fillAllValid() { /*//DOC
-        Fills all form fields with valid test data for debugging/testing purposes.
-        Each field's fillValid() method provides appropriate valid data.
-        */
-        Object.entries(this.input_fields).forEach(([key, input_field])=> input_field.fillValid());
-    }
-    fillAllInvalid() { /*//DOC
-        Fills all form fields with invalid test data for debugging/testing purposes.
-        Each field's fillInvalid() method provides appropriate invalid data.
-        */
-        Object.entries(this.input_fields).forEach(([key, input_field])=> input_field.fillInvalid());
     }
     checkInput() { // checks input & if ok, sends signals with the new/updated data
         this.log(-1, "checkInput")

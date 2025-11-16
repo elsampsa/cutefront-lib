@@ -22,10 +22,10 @@ class DataSourceWidget extends Widget { /*//DOC
         this.createState();
     }
     
-    createSignals() { 
+    createSignals() {
         this.signals.data = new Signal("Carries current data (paginated or all)");
         this.signals.datamodel_create = new Signal("Carries dataModel.create. Can be connected to downstream widgets like forms for validation");
-        this.signals.datamodel_read = new Signal("Carries dataModel.read"); 
+        this.signals.datamodel_read = new Signal("Carries dataModel.read");
         this.signals.datamodel_update = new Signal("Carries dataModel.update");
         this.signals.pagination_changed = new Signal(`Carries pagination info: {
                 currentPage: int,
@@ -37,6 +37,9 @@ class DataSourceWidget extends Widget { /*//DOC
             Can carry null, which means that all downstream widgets should stop
             paginating`);
         this.signals.error = new Signal("Carries error object: {message: str, status: int, body: str/json/null} where body is the server response if avail");
+        this.signals.loading_start = new Signal("Emitted when a datasource operation starts. Carries operation name (e.g., 'read', 'create', 'update', 'delete')");
+        this.signals.loading_success = new Signal("Emitted when a datasource operation completes successfully. Carries operation name");
+        this.signals.loading_error = new Signal("Emitted when a datasource operation fails. Carries {operation: str, error: object}");
     }
     
     // *** CRUD SLOTS ***
@@ -45,10 +48,15 @@ class DataSourceWidget extends Widget { /*//DOC
         Reads data from the dataSource and emits data signal.
         */
         this.log(-1, "read_slot called");
+        this.signals.loading_start.emit('read');
         this.dataSource.read()
-            .then((data) => this._handleReadResult(data))
+            .then((data) => {
+                this.signals.loading_success.emit('read');
+                this._handleReadResult(data);
+            })
             .catch((error) => {
                 this.log(0, "read_slot error:", error);
+                this.signals.loading_error.emit({operation: 'read', error: error});
                 this._emitError("Read failed", error);
             });
     }
@@ -57,10 +65,15 @@ class DataSourceWidget extends Widget { /*//DOC
         Creates a new datum in the dataSource.
         */
         this.log(-1, "create_slot called", datum);
+        this.signals.loading_start.emit('create');
         this.dataSource.create(datum)
-            .then((data) => this._handleCRUDResult(data, 'create'))
+            .then((data) => {
+                this.signals.loading_success.emit('create');
+                this._handleCRUDResult(data, 'create');
+            })
             .catch((error) => {
                 this.log(0, "create_slot error:", error);
+                this.signals.loading_error.emit({operation: 'create', error: error});
                 this._emitError("Create failed", error);
             });
     }
@@ -70,10 +83,15 @@ class DataSourceWidget extends Widget { /*//DOC
         :param datum: object with data fields including id
         */
         this.log(-1, "update_slot called", datum);
+        this.signals.loading_start.emit('update');
         this.dataSource.update(datum)
-            .then((data) => this._handleCRUDResult(data, 'update'))
+            .then((data) => {
+                this.signals.loading_success.emit('update');
+                this._handleCRUDResult(data, 'update');
+            })
             .catch((error) => {
                 this.log(0, "update_slot error:", error);
+                this.signals.loading_error.emit({operation: 'update', error: error});
                 this._emitError("Update failed", error);
             });
     }
@@ -99,10 +117,15 @@ class DataSourceWidget extends Widget { /*//DOC
                 return;
             }
         }
+        this.signals.loading_start.emit('delete');
         this.dataSource.delete(id)
-            .then((data) => this._handleCRUDResult(data, 'delete'))
+            .then((data) => {
+                this.signals.loading_success.emit('delete');
+                this._handleCRUDResult(data, 'delete');
+            })
             .catch((error) => {
                 this.log(0, "delete_slot error:", error);
+                this.signals.loading_error.emit({operation: 'delete', error: error});
                 this._emitError("Delete failed", error);
             });
     }
@@ -129,12 +152,20 @@ class DataSourceWidget extends Widget { /*//DOC
         this.read_slot();
     }
     
+    set_network_simulator_slot(simulator) { /*//DOC
+        Sets a network simulator on the underlying dataSource for testing.
+        :param simulator: NetworkSimulator instance (or null to disable)
+        */
+        this.log(-1, "set_network_simulator_slot called", simulator);
+        this.dataSource.setNetworkSimulator(simulator);
+    }
+
     set_auth_slot(authInfo) { /*//DOC
         Sets authentication info on the dataSource.
         :param authInfo: object with token, refreshToken, etc.
         */
         this.log(-1, "set_auth_slot called", authInfo);
-        
+
         if (this.dataSource.setAuth) {
             this.dataSource.setAuth(authInfo);
         } else {
