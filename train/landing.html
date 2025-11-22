@@ -4,11 +4,15 @@
 <meta charset="utf-8">
 <title>Authentication App</title>
 <link href="../lib/bootstrap-5.2.3-dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="../lib/include/bootstrap-icons/css/bootstrap-icons.min.css" rel="stylesheet">
 </head>
 <body>
 
 <!-- Container for all auth widgets -->
 <div id="auth-container"></div>
+
+<div id="network-sim"></div>
+<div id="loading-indicator"></div>
 
 <!-- Test panel - will be populated only in development mode -->
 <div id="test-panel" style="margin-top: 2rem; padding: 1rem; border-top: 2px solid #ccc;"></div>
@@ -18,15 +22,39 @@
 
 <script type="module">
 
+const networkTest = true; // Enable network testing widgets
+const isTestMode = (
+    window.location.protocol === 'file:' ||
+    window.location.search.includes('testing=true')
+);
+const useTestPanel = (
+    window.location.search.includes('testing=true') || 
+    window.location.search.includes('test-panel=true')
+)
+
 import { ContainerWidget } from '../lib/base/containerwidget.js';
 import { LoginWidget } from './landing/login.js';
 import { ForgotPasswordWidget } from './landing/forgotpassword.js';
 import { SignupWidget } from './landing/signup.js';
 import { AuthUserHTTPDataSource, AuthUserMockDataSource } from './datapi/authuser/datasource.js'
 import { AuthUserDataSourceWidget } from './datapi/authuser/datawidget.js'
+import { FapiAuthModel } from './lib/fapiauthmodel.js'
 import { BannerWidget } from './lib/banner.js';
+import { LoadingIndicatorWidget } from '../lib/base/loadingindicatorwidget.js';
 
-const authUserDataSource = new AuthUserMockDataSource(); // NOTE: not using datamodel
+// datasources and auth
+const authModel = new FapiAuthModel()
+// NOTE: AuthUserMockDataSource is not using datamodel
+if (isTestMode) {
+    var authUserDataSource = new AuthUserMockDataSource(); // (1): mock data source
+}
+else {
+    var authUserDataSource = new AuthUserHTTPDataSource()
+        .setBaseUrl('http://localhost:8000/api/v1') // (2): read docker exposed port
+        .setAuthModel(new LocalStorageAuthModel("access_token"))
+    // const authUserDataSource = new AuthUserHTTPDataSource().setBaseUrl('http://localhost:8000/api/v1') // (3): as in container! // TODO
+}
+
 const authUserDataSourceWidget = new AuthUserDataSourceWidget('auth-user-datasource-widget', authUserDataSource);
 
 // Create the container
@@ -44,7 +72,21 @@ container.setItems({
     signup: signupWidget
 });
 
+
 const bannerWidget = new BannerWidget();
+const loadingIndicator = new LoadingIndicatorWidget('loading-indicator');
+loadingIndicator.setLogLevel(-1);
+
+if (networkTest) {
+    const { NetworkSimulatorWidget } = await import('../lib/base/networksimulatorwidget.js');
+    // Create network simulator widget (floating panel in bottom-right)
+    const networkSimWidget = new NetworkSimulatorWidget('network-sim');
+    networkSimWidget.setLogLevel(-1);
+    // Wire network simulator to all datasource widgets
+    networkSimWidget.signals.simulator_changed.connect(
+        (sim) => authUserDataSourceWidget.set_network_simulator_slot(sim)
+    );
+}
 
 // Connect navigation signals between widgets
 // From Login widget
@@ -68,7 +110,7 @@ authUserDataSourceWidget.signals.success.connect(() => {
     container.show_slot(loginWidget);
 });
 
-// Handle actual authentication actions
+// Handle actual authentication intents -> data to datasource
 loginWidget.signals.login.connect((credentials) => {
     console.log("Login attempt:", credentials);
     authUserDataSourceWidget.signIn_slot(credentials)
@@ -82,7 +124,7 @@ signupWidget.signals.sign_up.connect((userData) => {
     authUserDataSourceWidget.signUp_slot(userData);
 });
 
-// success/failure from signup, forgot password or signin
+// success/failure signals from signup, forgot password or signin
 authUserDataSourceWidget.signals.message.connect((message) => {
     bannerWidget.ok_slot(message)
 });
@@ -92,9 +134,21 @@ authUserDataSourceWidget.signals.error.connect((message) => {
 // succesfull sign in!
 authUserDataSourceWidget.signals.signIn_success.connect((data) => {
     console.log("signin success with", data);
-    localStorage.setItem("access_token", data.body.access_token);
+    localStorage.setItem("access_token", data.access_token);
     window.location.href = "layout.html";
 });
+
+// data operations un/block UI
+authUserDataSourceWidget.signals.loading_start.connect(
+    (op) => loadingIndicator.loading_start_slot(op)
+);
+authUserDataSourceWidget.signals.loading_success.connect(
+    (op) => loadingIndicator.loading_success_slot(op)
+);
+authUserDataSourceWidget.signals.loading_error.connect(
+    (data) => loadingIndicator.loading_error_slot(data)
+);
+
 
 // Set logo for all widgets (optional)
 const logoPath = "logo.png"; // Change this to your actual logo path
@@ -110,14 +164,11 @@ window.genDocs = ["authUserDataSourceWidget", "container"]
 // ============================================================================
 // TEST PANEL - Only active in development mode
 // ============================================================================
-const isTestMode = (
-    window.location.protocol === 'file:' ||
-    window.location.search.includes('testing=true')
-);
 
-
-if (isTestMode) {
+if (useTestPanel) {
     console.log("🧪 Test mode enabled - injecting test panel");
+
+    container.activate_debug_slot();
 
     const testPanel = document.getElementById('test-panel');
     testPanel.innerHTML = `
@@ -181,7 +232,7 @@ if (isTestMode) {
         container.show_slot(loginWidget);
         setTimeout(() => {
             loginWidget.signals.login.emit({
-                email: "admin@example.com",
+                username: "admin@example.com",
                 password: "changethis"
             });
         }, 150);
@@ -192,7 +243,7 @@ if (isTestMode) {
         container.show_slot(loginWidget);
         setTimeout(() => {
             loginWidget.signals.login.emit({
-                email: "wrong@example.com",
+                username: "wrong@example.com",
                 password: "wrongpassword"
             });
         }, 150);
@@ -223,9 +274,9 @@ if (isTestMode) {
         container.show_slot(signupWidget);
         setTimeout(() => {
             signupWidget.signals.sign_up.emit({
-                username: "newuser",
-                email: "newuser@example.com",
-                password: "password123"
+                username: `newuser${Math.floor(Math.random() * 9999)}`,
+                email: `newuser${Math.floor(Math.random() * 9999)}@example.com`,
+                password: `password123`
             });
         }, 150);
     };
@@ -250,7 +301,6 @@ if (isTestMode) {
     // Pre-fill login form for convenience during development
     loginWidget.test_input_slot("admin@example.com", "changethis");
 }
-
 
 </script>
 </html>

@@ -30,42 +30,106 @@
         </div>
     </div>
 
+    <!-- Network testing widgets (only used when networkTest = true) -->
+    <div id="network-sim"></div>
+    <div id="loading-indicator"></div>
+
     <script src="../lib/bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
     <script type="module">
+        const isTestMode = (
+            window.location.protocol === 'file:' ||
+            window.location.search.includes('testing=true')
+        );
+        const networkTest = true; // Enable network testing widgets
         import { ElementWidget } from '../lib/base/widget.js';
         import { ContainerWidget } from '../lib/base/containerwidget.js';
         import { FapiGroup } from './lib/fapigroup.js';
         import { SidebarMenuItem } from '../lib/base/sidebarwidget.js';
         import { FapiSidebar } from './lib/fapisidebar.js';
-        import { PaginationStrategy } from '../lib/base/pagination.js';
+        import { FapiPaginationStrategy } from './lib/fapipagination.js';
+        import { LocalStorageAuthModel } from '../lib/base/authmodel.js';
         // subsections
         import { AuthUserFloaterWidget } from './lib/authuserfloater.js';
         import { DashboardSection } from './layout/sections/dashboard/main.js'
         import { ItemsSection } from './layout/sections/items/main.js'
         import { SettingsSection } from './layout/sections/settings/main.js'
         import { AdminSection } from './layout/sections/admin/main.js'
+        // warning banner
+        import { BannerWidget } from './lib/banner.js';
+        import { LoadingIndicatorWidget } from '../lib/base/loadingindicatorwidget.js';
         // datasources
         // authenticated user
         import { AuthUserHTTPDataSource, AuthUserMockDataSource } from './datapi/authuser/datasource.js'
         import { AuthUserDataSourceWidget } from './datapi/authuser/datawidget.js'
-        const authUserDataSource = new AuthUserMockDataSource(); // NOTE: not using datamodel
-        const authUserDataSourceWidget = new AuthUserDataSourceWidget('auth-user-datasource-widget', authUserDataSource);
         // items
-        import { ItemMockDataSource } from './datapi/item/datasource.js';
+        import { ItemMockDataSource, ItemHTTPDataSource } from './datapi/item/datasource.js';
         import { ItemDataModel } from './datapi/item/datamodel.js';
         import { ItemDataSourceWidget } from './datapi/item/datawidget.js';
-        const itemMockDataSource = new ItemMockDataSource().setDataModel(new ItemDataModel()).setUUIDKey("id").setPaginationStrategy(new PaginationStrategy())
-        const itemDataSourceWidget = new ItemDataSourceWidget('item-datasource-widget', itemMockDataSource);
         // users
-        import { UserMockDataSource } from './datapi/user/datasource.js';
+        import { UserMockDataSource, UserHTTPDataSource } from './datapi/user/datasource.js';
         import { UserDataModel } from './datapi/user/datamodel.js';
         import { UserDataSourceWidget } from './datapi/user/datawidget.js';
-        const userMockDataSource = new UserMockDataSource().setDataModel(new UserDataModel()).setUUIDKey("id").setPaginationStrategy(new PaginationStrategy())
-        const userDataSourceWidget = new UserDataSourceWidget('user-datasource-widget', userMockDataSource);
+        
+        // datasources
+        if (isTestMode) {
+            var authUserDataSource = new AuthUserMockDataSource(); // NOTE: not using datamodel
+            var itemDataSource = new ItemMockDataSource()
+                .setDataModel(new ItemDataModel()).setUUIDKey("id")
+                .setPaginationStrategy(new FapiPaginationStrategy())
+            var userDataSource = new UserMockDataSource()
+                .setDataModel(new UserDataModel()).setUUIDKey("id")
+                .setPaginationStrategy(new FapiPaginationStrategy())
+        } 
+        else {
+            var authUserDataSource = new AuthUserHTTPDataSource()
+                .setBaseUrl('http://localhost:8000/api/v1')
+                .setAuthModel(new LocalStorageAuthModel("access_token"))
+            var itemDataSource = new ItemHTTPDataSource()
+                .setBaseUrl('http://localhost:8000/api/v1')
+                .setDataModel(new ItemDataModel())
+                .setUUIDKey("id")
+                .setPaginationStrategy(new FapiPaginationStrategy())
+                .setAuthModel(new LocalStorageAuthModel("access_token"))
+            var userDataSource = new UserHTTPDataSource()
+                .setBaseUrl('http://localhost:8000/api/v1')
+                .setDataModel(new UserDataModel())
+                .setUUIDKey("id")
+                .setPaginationStrategy(new FapiPaginationStrategy())
+                .setAuthModel(new LocalStorageAuthModel("access_token"))
+        }
 
+        // Create all widgets
+        const authUserDataSourceWidget = new AuthUserDataSourceWidget('auth-user-datasource-widget', authUserDataSource);
+        const itemDataSourceWidget = new ItemDataSourceWidget('item-datasource-widget', itemDataSource);
+        const userDataSourceWidget = new UserDataSourceWidget('user-datasource-widget', userDataSource);
         itemDataSourceWidget.setLogLevel(-1); // Enable debug logging
         userDataSourceWidget.setLogLevel(-1); // Enable debug logging
-        // Create all widgets
+
+        // Create loading indicator widget (overlay)
+        const loadingIndicator = new LoadingIndicatorWidget('loading-indicator');
+        loadingIndicator.setLogLevel(-1);
+
+        // Network testing widgets
+        if (networkTest) {
+            const { NetworkSimulatorWidget } = await import('../lib/base/networksimulatorwidget.js');
+            
+            // Create network simulator widget (floating panel in bottom-right)
+            const networkSimWidget = new NetworkSimulatorWidget('network-sim');
+            networkSimWidget.setLogLevel(-1);
+
+            // Wire network simulator to all datasource widgets
+            networkSimWidget.signals.simulator_changed.connect(
+                (sim) => authUserDataSourceWidget.set_network_simulator_slot(sim)
+            );
+            networkSimWidget.signals.simulator_changed.connect(
+                (sim) => itemDataSourceWidget.set_network_simulator_slot(sim)
+            );
+            networkSimWidget.signals.simulator_changed.connect(
+                (sim) => userDataSourceWidget.set_network_simulator_slot(sim)
+            );
+        }
+
+        const bannerWidget = new BannerWidget();
         const authUserFloaterWidget = new AuthUserFloaterWidget("userFloater");
         // sections
         const dashboardSection = new DashboardSection();
@@ -117,6 +181,20 @@
         itemDataSourceWidget.signals.pagination_changed.connect((paginationInfo)=> 
             container.widgets.itemsSection.widgets.itemList.set_pagination_slot(paginationInfo)
         );
+        // connect error signals to warning
+        itemDataSourceWidget.signals.error.connect((message) =>
+            bannerWidget.error_slot(message)
+        );
+        // ui release/blocking for datasource network operations
+        itemDataSourceWidget.signals.loading_start.connect(
+            (op) => loadingIndicator.loading_start_slot(op)
+        );
+        itemDataSourceWidget.signals.loading_success.connect(
+            (op) => loadingIndicator.loading_success_slot(op)
+        );
+        itemDataSourceWidget.signals.loading_error.connect(
+            (data) => loadingIndicator.loading_error_slot(data)
+        );
 
         // connect signal that carries user's pagination request to data source
         container.widgets.itemsSection.signals.page_changed.connect(
@@ -138,7 +216,7 @@
             (datum) =>
             itemDataSourceWidget.delete_slot(datum)
         )
-
+        
         // users
         userDataSourceWidget.signals.datamodel_create.connect((schema)=>
             container.widgets.adminSection.datamodel_slot(schema)
@@ -149,6 +227,20 @@
         // connect signal that carries pagination info
         userDataSourceWidget.signals.pagination_changed.connect((paginationInfo)=>
             container.widgets.adminSection.widgets.userList.set_pagination_slot(paginationInfo)
+        );
+        // connect error signals to warning
+        userDataSourceWidget.signals.error.connect((message) =>
+            bannerWidget.error_slot(message)
+        );
+        // ui release/blocking for datasource network operations
+        userDataSourceWidget.signals.loading_start.connect(
+            (op) => loadingIndicator.loading_start_slot(op)
+        );
+        userDataSourceWidget.signals.loading_success.connect(
+            (op) => loadingIndicator.loading_success_slot(op)
+        );
+        userDataSourceWidget.signals.loading_error.connect(
+            (data) => loadingIndicator.loading_error_slot(data)
         );
         // connect signal that carries pagination request to data source
         container.widgets.adminSection.signals.page_changed.connect(
@@ -181,12 +273,21 @@
         authUserDataSourceWidget.signals.me.connect((datum) =>
             container.widgets.settingsSection.set_datum_slot(datum)
         );
-
+        
         // connections from authUserDataSource to GUI widgets
         authUserDataSourceWidget.signals.me.connect((datum) =>
             fapiSidebar.setAuthUser_slot(datum)
         );
-
+        // data operations un/block UI
+        authUserDataSourceWidget.signals.loading_start.connect(
+            (op) => loadingIndicator.loading_start_slot(op)
+        );
+        authUserDataSourceWidget.signals.loading_success.connect(
+            (op) => loadingIndicator.loading_success_slot(op)
+        );
+        authUserDataSourceWidget.signals.loading_error.connect(
+            (data) => loadingIndicator.loading_error_slot(data)
+        );
         // connections from floating widget for user shortcuts
         authUserFloaterWidget.signals.profile.connect(() =>
             container.show_slot(container.widgets.settingsSection)
@@ -205,6 +306,10 @@
 
         window.genDocs = ["container", "itemDataSourceWidget","userDataSourceWidget","authUserFloaterWidget"]
 
+        if (isTestMode) {
+            console.log("🧪 Test mode enabled - injecting test panels");
+            container.activate_debug_slot();
+        }
     </script>
 </body>
 </html>
