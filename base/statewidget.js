@@ -30,6 +30,12 @@ class StateWidget extends Widget { /*//DOC
         - signals.state_change signal
         - getState() returning { serializationKey, serializationValue, write }
         - setState(serializationValue) to restore state
+
+        Initialization sequence:
+        1. Build default state from widgets' current values
+        2. Pull URL params - overwrites state for keys that exist in URL
+        3. Push merged state to URL (enables shareable links)
+        4. Apply merged state to all widgets
         */
         for (const widget of widgets) {
             const state = widget.getState();
@@ -44,14 +50,19 @@ class StateWidget extends Widget { /*//DOC
             const key = state.serializationKey;
             this.log(-1, "register: registering widget with key", key);
             this.widgets[key] = widget;
+            // Step 1: Get widget's default/current value
             this.state[key] = state.serializationValue;
             // Connect widget's state_change signal to our slot
             widget.signals.state_change.connect(
                 this.change_state_slot.bind(this)
             );
         }
-        // Write current widget states to URL (replaces current history entry)
+        // Step 2: Pull from URL - overwrites this.state for keys present in URL
+        this.pull();
+        // Step 3: Write merged state (defaults + URL) to URL
         this.push0();
+        // Step 4: Apply merged state to all widgets
+        this.setStates();
         // Add event listener for browser back/forward buttons
         window.addEventListener('popstate', (event) => {
             this.log(-1, "popstate", event);

@@ -64,6 +64,20 @@ Said that, these are widget classes in the base library you should take a look a
 ```
 (and the corresponding html files).
 
+## Testing Widgets
+
+Each test html file can be run in chrome with the `--allow-file-access-from-files` parameter to visualize an individual widget.
+
+More complex single-page applications (SPAs) can also be opened in the same way: the page has internal logic so that it goes into debug state
+when opened as a file.  In the debug state it typically uses mock datasources, adds testing panels, etc.
+          
+_You_ can use this too: just fire up chrome in headless mode and take a screencapture.  You can remove additional testing panels by defining these
+URL-encoded parameters when opening the SPA html file:
+```
+network-testing=false
+test-panel=false
+```
+
 ## Subwidgets and subobjects
 
 Widgets can have subwidgets (i.e. widgets enclosed in a "mother" widget), and subwidgets their own subwidgets, etc. in a hierarchical manner.
@@ -140,6 +154,7 @@ to the actual (http(s)) datasource.
 ## State Management
 
 Widgets can serialize their state to the browser's URL address bar, enabling:
+
 - Bookmarkable/shareable URLs with widget state
 - Browser back/forward navigation between states
 
@@ -206,9 +221,13 @@ See `../base/statewidget.html` for a working example.
 
 ## Conclusions
 
+I hope you got it!  
 
-I hope you got it!  Briefly, I will ask you for widgets.  Please, always provide me with both the .js and accompanying .html files.  
+If I ask for new widgets, please always provide me with both the .js and accompanying .html files.  
 
 I know you're excited, but please do not provide any files if I don't ask for it explicitly.  :)
+
+I might also ask you to take a look at the web-page rendering.  All test html files can be rendered in file mode
+
 
 Thank you!
