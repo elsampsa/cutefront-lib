@@ -11,41 +11,39 @@ class Group extends Widget { /*//DOC
         this.createState();
     }
     createSignals() {
-        this.signals.state_change = new Signal("State de/serialization: state change");
+        this.signals.state_change = new Signal("State change. Carries { serializationKey, serializationValue, write }");
     }
-    stateToPar() { 
-        /* state is encoded like this:
-        0_1_2_ etc. i.e. numbers of
-        all visible elements, separated with "_"
+    getSerializationValue() {
+        /* state is encoded using widget names, e.g. "home.settings"
+        for all visible elements, separated by "."
         */
-        var s="";
-        for (var i = 0; i < this.itemList.length; i++) {
-            var item = this.itemList[i]
-            if (item.isVisible()) {
-                s=s.concat(`${i}_`)
+        const visibleNames = [];
+        for (const [name, widget] of Object.entries(this.widgets)) {
+            if (widget.isVisible()) {
+                visibleNames.push(name);
             }
         }
-        this.log(-1, "stateToPar", s)
-        return s
+        const s = visibleNames.join(".");
+        this.log(-1, "getSerializationValue", s);
+        return s;
     }
-    validatePar(s) {
-        // not a comprehensive check.. check at least it's a string
-        this.log(-2, "validatePar", s)
-        this.log(-2, "validatePar", typeof s === "string")
-        return (typeof s === "string")
-    }
-    parToState(s) {
-        this.log(-1, "parToState", s)
+    setState(serializationValue) {
+        this.log(-1, "setState", serializationValue);
+        if (typeof serializationValue !== "string") {
+            return;
+        }
         // hide all
         for (const item of this.itemList) {
             item.setVisible(false);
         }
-        // pick up which ones to show
-        var nums=s.split("_")
-        for (const num of nums) {
-            let i=parseInt(num)
-            if (!(isNaN(i))) {
-                this.itemList[i].setVisible(true);
+        // pick up which ones to show by name
+        if (serializationValue.length === 0) {
+            return;
+        }
+        const names = serializationValue.split(".");
+        for (const name of names) {
+            if (this.widgets.hasOwnProperty(name)) {
+                this.widgets[name].setVisible(true);
             }
         }
     }
@@ -60,15 +58,15 @@ class Group extends Widget { /*//DOC
         for (const item of this.itemList) {
             item.setVisible(false);
         }
-        this.stateSave()
+        this.serialize();
     }
     show_all_slot() { /*//DOC Show all widgets in this group*/
         for (const item of this.itemList) {
             item.setVisible(true);
         }
-        this.stateSave()
+        this.serialize();
     }
-    show_slot(item) { /*//DOC 
+    show_slot(item) { /*//DOC
         Hide all other widgets, show widget item
         */
         if (this.itemList.includes(item)) {
@@ -82,7 +80,7 @@ class Group extends Widget { /*//DOC
             }
             // item.setVisible(true);
         }
-        this.stateSave()
+        this.serialize();
     }
     setItems(itemsObject) { /*//DOC
         Set all the items belonging to this group.  Example:

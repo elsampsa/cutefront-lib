@@ -396,28 +396,76 @@ class Widget { /* The Base class implementation for CuteFront Widgets
     setLogLevel(num) { // set the log level
         this.loglevel = num;
     }
-    // state mangement methods follow
-    stateSave() {
-        var par = this.stateToPar()
-        this.log(-1,"stateSave", par)
-        // if (par != null && this.signals.state_change != null) {
-        if (this.signals.state_change != null) { // par _can_ be null
-            //let obj = {}
-            //obj[this.id] = par
-            const keyval = [this.id, par];
-            this.signals.state_change.emit(keyval);
+    // state management methods follow
+
+    setSerializationKey(key) { /*//DOC
+        Sets the serialization key for this widget. Used by StateWidget to identify
+        this widget's state in the URL parameters.
+        :param key: string - the key to use in URL serialization
+        :returns: this (chainable)
+        */
+        this.serializationKey = key;
+        return this;
+    }
+
+    setSerializationWrite(write) { /*//DOC
+        Sets whether state changes from this widget should create new browser history entries.
+        :param write: boolean - if true, state changes push to history; if false, they only update current state
+        :returns: this (chainable)
+        */
+        this.serializationWrite = write;
+        return this;
+    }
+
+    getState() { /*//DOC
+        Returns the current serialization state of this widget.
+        Subclasses that want to participate in state serialization should override
+        getSerializationValue() to return their serialized state string.
+        :returns: { serializationKey: string, serializationValue: string, write: boolean } or null if not configured
+        */
+        if (!this.serializationKey) {
+            return null;
         }
-        else {
-            // this.err("did not emit state_save", par, this.signals.state_change)
-        }
+        const value = this.getSerializationValue();
+        return {
+            serializationKey: this.serializationKey,
+            serializationValue: value,
+            write: this.serializationWrite || false
+        };
     }
-    parToState(par) { // deserialize par and set the state of the widget
-    }
-    validatePar(par) { // check that a serialized state parameter is a legit one
-        return true;
-    }
-    stateToPar() { // serialize state of the widget and return a par
+
+    getSerializationValue() { /*//DOC
+        Returns the serialized state value of this widget as a string.
+        Subclasses should override this to provide their serialized state.
+        :returns: string or null
+        */
         return null;
+    }
+
+    setState(serializationValue) { /*//DOC
+        Sets the widget's state from a serialized value string.
+        Subclasses should override this to deserialize and apply the state.
+        Should validate the value and ignore if invalid.
+        :param serializationValue: string - the serialized state to apply
+        */
+        // Base implementation does nothing - subclasses override
+    }
+
+    serialize() { /*//DOC
+        Serializes the widget's current state and emits it via signals.state_change.
+        Only emits if the widget has a serializationKey configured and signals.state_change exists.
+        */
+        const state = this.getState();
+        if (state === null) {
+            this.log(-1, "serialize: no serializationKey configured, skipping");
+            return;
+        }
+        if (this.signals.state_change == null) {
+            this.log(-1, "serialize: no state_change signal, skipping");
+            return;
+        }
+        this.log(-1, "serialize: emitting state", state);
+        this.signals.state_change.emit(state);
     }
     /*
     getElement(par) {

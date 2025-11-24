@@ -4,7 +4,7 @@
         <meta charset="utf-8" />
         <title>Group Example</title>
         <link
-            href="../bootstrap-5.2.3-dist/css/bootstrap.min.css"
+            href="../bootstrap/css/bootstrap.min.css"
             rel="stylesheet"
         />
     </head>
@@ -18,26 +18,35 @@
         <button id="show2">show 2</button>
 
     </body>
-    <script src="../bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../bootstrap/js/bootstrap.bundle.min.js"></script>
 
     <script type="module">
         import { DummyWidget } from "./widget.js";
         import { Include } from "./include.js";
         import { Group } from "./group.js";
+        import { StateWidget } from "./statewidget.js";
 
         var tx1 = new Include("tx1");
         var tx2 = new Include("tx2");
         var dummy_widget = new DummyWidget();
         var group = new Group("mygroup");
         group.setItems({
-            "tx1": tx1, 
+            "tx1": tx1,
             "tx2": tx2
         });
+
+        // Configure serialization
+        group.setSerializationKey("view").setSerializationWrite(true);
 
         group.setLogLevel(-1); // debugging
 
         tx1.render_string_slot("HELLO 1");
         tx2.render_string_slot("HELLO 2");
+
+        // Create StateWidget and register
+        const stateWidget = new StateWidget();
+        stateWidget.setLogLevel(-1);
+        stateWidget.register(group);
 
         let showall = document.getElementById("show-all");
         let hideall = document.getElementById("hide-all");

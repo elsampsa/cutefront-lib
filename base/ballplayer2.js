@@ -5,25 +5,26 @@ class BillBoard2 extends BillBoard { /*//DOC
     Extends class BillBoard.  This widget knows how to (de)serialize it's state
     */
     createSignals() {
-        this.signals.state_change = new Signal("state change");
+        this.signals.state_change = new Signal("State change. Carries { serializationKey, serializationValue, write }");
     }
     ball_throw_slot() { /*//DOC
         Sending signal to this slot, increments the number of how many times
         a ball has been thrown
         */
-        super.ball_throw_slot()
-        this.stateSave()
+        super.ball_throw_slot();
+        this.serialize();
     }
-    stateToPar() { // defines state serialization
-        return this.counter.toString()
+    getSerializationValue() {
+        return this.counter.toString();
     }
-    validatePar(par) { // return false if par can't parsed as an integer value
-        return !isNaN(parseInt(par))
-    }
-    parToState(par) { // define state deserialization
-        this.counter = parseInt(par)
-        this.log(-1, "parToState: counter", this.counter)
-        this.updateMessage()
+    setState(serializationValue) {
+        const val = parseInt(serializationValue);
+        if (isNaN(val)) {
+            return;
+        }
+        this.counter = val;
+        this.log(-1, "setState: counter", this.counter);
+        this.updateMessage();
     }
 }
 
@@ -31,54 +32,56 @@ class BallPlayer2 extends BallPlayer { /*//DOC
     Extends class BallPlayer.  This widget knows how to (de)serialize it's state
     */
     createSignals() {
-        super.createSignals()
-        this.signals.state_change = new Signal("state change") // required for state management
+        super.createSignals();
+        this.signals.state_change = new Signal("State change. Carries { serializationKey, serializationValue, write }");
     }
     catch_ball_slot() { /*//DOC
         Sending a signal to this slot, gives the ball to this widget
         */
-        super.catch_ball_slot()
-        this.stateSave()
+        super.catch_ball_slot();
+        this.serialize();
     }
-    stateToPar() { // define state serialization
-        let par = +this.has_ball // boolean to int
-        this.log(-1, "stateToPar", par)
-        return par.toString() 
+    getSerializationValue() {
+        // encode boolean as "ball" or "noball" for readability
+        const val = this.has_ball ? "ball" : "noball";
+        this.log(-1, "getSerializationValue", val);
+        return val;
     }
-    validatePar(par) { // validate a serialized state
-        // return false if par can't parsed as an integer value
-        let i = parseInt(par)
-        if (isNaN(i)) { // not an integer
-            this.err("validatePar failed with par",par,":",i,"not a number")
-            return false
+    setState(serializationValue) {
+        if (serializationValue === "ball") {
+            this.has_ball = true;
+        } else if (serializationValue === "noball") {
+            this.has_ball = false;
+        } else {
+            // fallback: try parsing as 0/1 for backwards compatibility
+            const i = parseInt(serializationValue);
+            if (i === 1) {
+                this.has_ball = true;
+            } else if (i === 0) {
+                this.has_ball = false;
+            } else {
+                return; // invalid value
+            }
         }
-        if (i!=0 && i!=1) {
-            this.err("validatePar failed with :",i,"not 0 or 1")
-            return false
-        }
-        return true;
-    }
-    parToState(par) { // define state deserialization
-        this.has_ball = (parseInt(par) == 1) // int to bool
-        this.log(-1, "parToState", this.has_ball)
-        this.setBall()
+        this.log(-1, "setState", this.has_ball);
+        this.setBall();
     }
     createState() {
-        super.createState()
-        this.stateSave()
+        super.createState();
+        this.serialize();
         // initialize to not having a ball
     }
     throwBall() {
         if (!this.has_ball) {
             // we don't have the ball..
-            return
+            return;
         }
-        this.has_ball = false
-        this.setBall()
-        this.stateSave()
-        this.signals.throw_ball.emit()
+        this.has_ball = false;
+        this.setBall();
+        this.serialize();
+        this.signals.throw_ball.emit();
     }
-    
+
 } // BallPlayer
 
 export { BallPlayer2, BillBoard2 }

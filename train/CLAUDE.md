@@ -137,7 +137,75 @@ setPaginationStrategy(strategy)
 What we typically do, is to the create mock data sources that imitate the actual datasources and then finally switch from the mock
 to the actual (http(s)) datasource.
 
+## State Management
+
+Widgets can serialize their state to the browser's URL address bar, enabling:
+- Bookmarkable/shareable URLs with widget state
+- Browser back/forward navigation between states
+
+### Widget Serialization API
+
+Widgets wanting to participate in state serialization must:
+
+1. Define the `state_change` signal:
+```js
+createSignals() {
+    this.signals.state_change = new Signal("State change. Carries { serializationKey, serializationValue, write }");
+}
+```
+
+2. Configure serialization in the HTML file (chainable API):
+```js
+myWidget.setSerializationKey("mykey")   // URL parameter name
+        .setSerializationWrite(true);    // true = create history entries, false = only update URL
+```
+
+3. Override these methods in the widget class:
+```js
+getSerializationValue() { // return serialized state as a string
+    return this.someValue.toString();
+}
+setState(serializationValue) { // deserialize and apply state (validate first!)
+    const val = parseInt(serializationValue);
+    if (!isNaN(val)) {
+        this.someValue = val;
+    }
+}
+```
+
+4. Call `this.serialize()` whenever the widget's state changes and should be saved:
+```js
+this.button.onclick = () => {
+    this.someValue++;
+    this.serialize(); // emits state_change signal
+};
+```
+
+### StateWidget
+
+`StateWidget` manages URL state for all registered widgets:
+
+```js
+const stateWidget = new StateWidget();
+stateWidget.register(widget1, widget2, widget3); // registers and connects automatically
+```
+
+The `register()` method:
+- Reads each widget's `serializationKey` via `getState()`
+- Connects each widget's `state_change` signal to StateWidget's `change_state_slot`
+- Pulls existing state from URL and applies to widgets via `setState()`
+- Sets up browser back/forward button handling
+
+When a widget calls `serialize()`:
+- If `serializationWrite` is true: creates new browser history entry (`push()`)
+- If `serializationWrite` is false: just caches the serialization value, but doesn't create a new entry into browser history
+
+On browser back/forward: StateWidget calls each widget's `setState()` with the restored value.
+
+See `../base/statewidget.html` for a working example.
+
 ## Conclusions
+
 
 I hope you got it!  Briefly, I will ask you for widgets.  Please, always provide me with both the .js and accompanying .html files.  
 

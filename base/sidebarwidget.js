@@ -233,7 +233,7 @@ class SidebarMenu extends Widget { /*//DOC
     }
 
     createSignals() {
-        this.signals.state_change = new Signal(); /*//DOC This widget features state (de)serialization */
+        this.signals.state_change = new Signal("State change. Carries { serializationKey, serializationValue, write }");
     }
 
     createState() {
@@ -253,7 +253,7 @@ class SidebarMenu extends Widget { /*//DOC
         // for the vertical menu, I had to add explicitly the icon
         this.element.innerHTML = `
         <div class="sidebar-wrapper">
-            <div class="d-flex flex-column flex-shrink-0 p-3 bg-light h-100" id="sidebar-container-${uuid}">
+            <div class="d-flex flex-column flex-shrink-0 p-3 bg-body-tertiary h-100" id="sidebar-container-${uuid}">
                 <button class="navbar-toggler d-lg-none align-self-start" type="button" data-bs-toggle="collapse" 
                         data-bs-target="#sidebar-${uuid}" aria-controls="sidebar-${uuid}" 
                         aria-expanded="false" aria-label="Toggle navigation">
@@ -325,7 +325,7 @@ class SidebarMenu extends Widget { /*//DOC
         }
     }
 
-    child_activate_slot(obj) { /*//DOC 
+    child_activate_slot(obj) { /*//DOC
 
         obj:
             child: item object
@@ -339,44 +339,51 @@ class SidebarMenu extends Widget { /*//DOC
         this.hierarchy=structuredClone(obj.lis);
         this.log(-1, "child_activate_slot: hierarchy", this.hierarchy);
         this.deactivate();
+        this.serialize();
     }
 
-    stateToPar() { 
-        /* state is encoded like this:
-        0_2_1 where the numbers present and indice in the nested list
+    getSerializationValue() {
+        /* state is encoded as a path of IDs, e.g. "admin.sub-item-1"
+        representing the navigation path through the menu hierarchy
         */
-        var s="";
-        // TODO: loop over this.hierarchy elements .. get their indices & encode into the string
-        for (const el of this.hierarchy) { // javascript
-            i = parseInt(el)
-            s=s.concat(`${i}_`)
+        if (this.hierarchy.length === 0) {
+            return "";
         }
-        if (s.length > 0) { // remove trailing _
-            s = s.slice(0, -1);
+        // Convert indices to IDs by traversing the menu structure
+        const ids = [];
+        let currentItems = this.menuItems;
+        for (const index of this.hierarchy) {
+            if (index >= 0 && index < currentItems.length) {
+                const item = currentItems[index];
+                ids.push(item.id);
+                currentItems = item.subMenuItems;
+            }
         }
-        this.log(-1, "stateToPar", s)
-        return s
+        const s = ids.join(".");
+        this.log(-1, "getSerializationValue", s);
+        return s;
     }
-    validatePar(s) {
-        // not a comprehensive check.. check at least it's a string
-        this.log(-2, "validatePar", s)
-        this.log(-2, "validatePar", typeof s === "string")
-        return (typeof s === "string")
-    }
-    parToState(s) {
-        this.log(-1, "parToState", s)
-        if (s.length < 1) {
-            return
+    setState(serializationValue) {
+        this.log(-1, "setState", serializationValue);
+        if (typeof serializationValue !== "string" || serializationValue.length < 1) {
+            return;
         }
-        // pick up which ones to show
-        var indexchars=s.split("_")
-        this.log(-1, "parToState: indexchars:", indexchars);
-        var lis = [];
-        for (const indexchar of indexchars) {
-            const i = toString(indexchar)
-            lis.push(i)
+        // Convert IDs to indices by traversing the menu structure
+        const idPath = serializationValue.split(".");
+        const indices = [];
+        let currentItems = this.menuItems;
+        for (const id of idPath) {
+            const index = currentItems.findIndex(item => item.id === id);
+            if (index === -1) {
+                this.log(-1, "setState: could not find item with id", id);
+                return; // Invalid path, abort
+            }
+            indices.push(index);
+            currentItems = currentItems[index].subMenuItems;
         }
-        this.activateTree(lis);
+        // Deactivate all items first, then activate the path
+        this.deactivate();
+        this.activateTree(indices);
     }
 
 }

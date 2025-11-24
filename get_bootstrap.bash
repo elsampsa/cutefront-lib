@@ -1,9 +1,12 @@
 #!/bin/bash
-echo "getting bootstrap 5.2.3"
-curl https://github.com/twbs/bootstrap/releases/download/v5.2.3/bootstrap-5.2.3-dist.zip -o bootstrap-5.2.3-dist.zip
-unzip bootstrap-5.2.3-dist.zip
-echo "getting bootstrap fonts"
-curl https://raw.githubusercontent.com/twbs/icons/main/font/bootstrap-icons.min.css -o bootstrap-5.2.3-dist/css/bootstrap-icons.min.css
-echo
-echo You may now remove "bootstrap-5.2.3-dist.zip"
-echo
+# Bootstrap version - change this to upgrade
+VERSION="5.3.3"
+
+echo "Getting Bootstrap ${VERSION}"
+curl -L https://github.com/twbs/bootstrap/releases/download/v${VERSION}/bootstrap-${VERSION}-dist.zip -o bootstrap-dist.zip
+unzip -o bootstrap-dist.zip
+rm -rf bootstrap
+mv bootstrap-${VERSION}-dist bootstrap
+rm bootstrap-dist.zip
+
+echo "Done! Bootstrap ${VERSION} installed to ./bootstrap/"

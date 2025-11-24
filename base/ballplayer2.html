@@ -3,7 +3,7 @@
     <meta charset="utf-8" />
     <title>ListWidget Example</title>
     <link
-        href="../bootstrap-5.2.3-dist/css/bootstrap.min.css"
+        href="../bootstrap/css/bootstrap.min.css"
         rel="stylesheet"
     />
 </head>
@@ -12,44 +12,30 @@
     <div id="bob"></div>
     <div id="billboard"></div>
 </body>
-<script src="../bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js"></script>
+<script src="../bootstrap/js/bootstrap.bundle.min.js"></script>
 
 <script type="module">
     import { BallPlayer2, BillBoard2 } from "./ballplayer2.js";
-    import { StateWidget } from "./statemanager.js";
-
-    class MyStateWidget extends StateWidget {
-        validateInitialState() {
-            // how to form the initial state
-            if (
-                this.cache.alex == null ||
-                this.cache.bob == null ||
-                this.cache.billboard == null
-            ) {
-                this.cache.alex = "0";
-                this.cache.bob = "1";
-                this.cache.billboard = "0";
-            }
-        }
-    }
+    import { StateWidget } from "./statewidget.js";
 
     var alex = new BallPlayer2("alex");
     var bob = new BallPlayer2("bob");
     var billboard = new BillBoard2("billboard");
-    var state = new MyStateWidget("state");
+
+    // Configure serialization
+    // Only billboard writes to history since it's the "final" widget in the signal chain
+    // (throw → catch + billboard update). This avoids multiple history entries per throw.
+    alex.setSerializationKey("alex").setSerializationWrite(false);
+    bob.setSerializationKey("bob").setSerializationWrite(false);
+    billboard.setSerializationKey("score").setSerializationWrite(true);
 
     alex.setLogLevel(-1);
     bob.setLogLevel(-1);
     billboard.setLogLevel(-1);
-    state.setLogLevel(-1);
-
-    // connect alex, bob and billboard's state_change signal
-    // to state's state_change_slot
-    state.register(alex, bob, billboard);
 
     // ball from alex to bob
     alex.signals.throw_ball.connect(() => bob.catch_ball_slot());
-    
+
     // ball from bob to alex
     bob.signals.throw_ball.connect(() => alex.catch_ball_slot());
 
@@ -62,16 +48,10 @@
     // give ball initially to alex
     alex.catch_ball_slot();
 
-    // NOTE: order of the following calls (1, 2) is important
-    // as you want to update the state information _before_ it is saved
-    // into the url address bar
-
-    state.connectStateChanges(); // (1)
-
-    // when the URL address serialize state is updated: // (2)
-    billboard.signals.state_change.connect((par) =>
-        state.state_save_slot(par)
-    );
+    // Create StateWidget and register all widgets
+    const stateWidget = new StateWidget();
+    stateWidget.setLogLevel(-1);
+    stateWidget.register(alex, bob, billboard);
 
     window.genDocs = ["alex", "bob", "billboard"];
 </script>
