@@ -18,7 +18,7 @@ setup(
     long_description_content_type="text/markdown",
     # url="nada",
     include_package_data=True,
-    packages=["cutetools"],
+    packages=["cutetools", "browser_automation"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
@@ -39,6 +39,7 @@ setup(
     entry_points={
         "console_scripts": [
             "cute-get-api-tree=cutetools.get_api_tree:main",
+            "cute-browser=browser_automation.__main__:main",
         ],
     },
     extras_require={

@@ -71,11 +71,21 @@ Each test html file can be run in chrome with the `--allow-file-access-from-file
 More complex single-page applications (SPAs) can also be opened in the same way: the page has internal logic so that it goes into debug state
 when opened as a file.  In the debug state it typically uses mock datasources, adds testing panels, etc.
           
-_You_ can use this too: just fire up chrome in headless mode and take a screencapture.  You can remove additional testing panels by defining these
-URL-encoded parameters when opening the SPA html file:
+_You_ can use this too: there is a custom tool named "cute-browser" where you get "hands and eyes" on the web-page and browsing!  Please try this for more info:
+```bash
+cute-browser --help
+```
+For local testing, you should use the `--local` flag that allows local js file access.
+
+You can remove additional testing panels by defining these URL-encoded parameters when opening the SPA html file:
 ```
 network-testing=false
 test-panel=false
+```
+
+I, for my part, can use the "device toolbar" feature in the chrome's developer panel.  However, in order for us to get consistent results, it is important that the html files have this one defined:
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1">
 ```
 
 ## Subwidgets and subobjects
