@@ -7,15 +7,20 @@ class ListItemWidget extends Widget { /*//DOC
     Ctor parameters:
     
     - index: index of this ListItemWidget with its ListWidget
-    - datum: a datum.  should have at least key "uuid"
+    - datum: a datum.
     */
-    constructor(index, datum) {
+    constructor() {
         super();
+    }
+    
+    setData(index, datum) {
         this.index = index;
         this.datum = structuredClone(datum)
         this.createState();
         this.createElement();
+        return this
     }
+
     createSignals() {
         this.signals.clicked = new Signal(`Emitted when this list item is clicked.  Carries uuid.`);
     }
@@ -171,7 +176,7 @@ class ListWidget extends Widget { /*//DOC
         this.list_items = new Array()
         var cc=0;
         datums.forEach(datum => {
-            var item = new this.listItemClass(cc, datum);
+            var item = new this.listItemClass().setData(cc, datum);
             item.signals.clicked.connect(
                 this.activate_slot.bind(this)
             );
