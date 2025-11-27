@@ -60,8 +60,7 @@ class PopupList extends Widget {
         const listId = randomID();
 
         this.element.innerHTML = `
-            <div id="${popupId}" class="popup" style="position: fixed; z-index: 1000; 
-                background: white; border: 1px solid #ccc; padding: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+            <div id="${popupId}" class="popup bg-body border rounded shadow" style="position: fixed; z-index: 1000; padding: 10px;">
                 <ul id="${listId}" style="list-style-type: none; padding: 0; margin: 0;"></ul>
             </div>
         `;
@@ -92,13 +91,14 @@ class PopupList extends Widget {
 
     renderList() {
         this.list.innerHTML = '';
-        this.items.forEach((item, index) => {
+        this.items.forEach((item) => {
             const li = document.createElement('li');
             li.innerHTML = item;
             li.style.cursor = 'pointer';
             li.style.padding = '5px';
-            li.onmouseover = () => li.style.background = '#f0f0f0';
-            li.onmouseout = () => li.style.background = 'white';
+            li.style.borderRadius = '3px';
+            li.onmouseover = () => li.classList.add('bg-body-secondary');
+            li.onmouseout = () => li.classList.remove('bg-body-secondary');
             li.onclick = () => {
                 this.signals.itemSelected.emit({
                     item: item,
