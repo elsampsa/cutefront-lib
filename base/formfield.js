@@ -153,6 +153,25 @@ class BaseFormField { /*//DOC
         this.input.value = value;
     }
 
+    disable() { /*//DOC
+        Disables the input field, making it non-editable and non-focusable.
+        Handles cross-browser differences (Firefox shows cursor in readOnly fields).
+        */
+        this.input.readOnly = true;
+        this.input.setAttribute('tabindex', '-1');
+        this.input.style.cursor = 'default';
+        this.input.style.pointerEvents = 'none';
+    }
+
+    enable() { /*//DOC
+        Enables the input field, making it editable and focusable.
+        */
+        this.input.readOnly = false;
+        this.input.removeAttribute('tabindex');
+        this.input.style.cursor = 'text';
+        this.input.style.pointerEvents = '';
+    }
+
     check(value) { /*//DOC
         Validates the input value.
 
@@ -573,6 +592,25 @@ class BaseFormFieldWidget extends Widget { /*//DOC
         Subclasses should override this.
         */
         throw new Error("set() must be implemented by subclass");
+    }
+
+    disable() { /*//DOC
+        Disables the input field, making it non-editable and non-focusable.
+        Handles cross-browser differences (Firefox shows cursor in readOnly fields).
+        */
+        this.input.readOnly = true;
+        this.input.setAttribute('tabindex', '-1');
+        this.input.style.cursor = 'default';
+        this.input.style.pointerEvents = 'none';
+    }
+
+    enable() { /*//DOC
+        Enables the input field, making it editable and focusable.
+        */
+        this.input.readOnly = false;
+        this.input.removeAttribute('tabindex');
+        this.input.style.cursor = 'text';
+        this.input.style.pointerEvents = '';
     }
 
     check(value) { /*//DOC

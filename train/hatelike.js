@@ -43,6 +43,24 @@ class HateLike extends Widget { /*//DOC
         this.createElement();
         this.createState();
     }
+    /* LLM: if one plans to subclass this particular class further, constructor
+    should NOT call anything else than super(id) and one should use the "builder" pattern
+    instead.  This is because in JS we can't access this and set additional parameters before
+    super() is called, i.e.:
+
+    setSome(pars) {
+        // do something here
+        this.createElement();
+        this.createState();
+        return this
+    }
+
+    So:
+
+    const hateLike = HateLike("id").setSome(pars)
+
+    and method setSome can be subclassed.  
+    */
     createSignals() { /* LLM: Define signals sent by this widget.
     After each signal definition, there should be a comment what the signal carries and what it is about.
     This method must always be defined, even it the widget didn't use any signals, in which case it is just an empty function.

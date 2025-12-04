@@ -70,11 +70,12 @@ class FormWidget extends Widget {  /*//DOC
             this.err("current_datum_slot: please call datamodel_slot first");
             return;
         }
+        // clear any old data
+        this.clear();
         // sets the current data in the form fields
         this.log(-1, "current_datum_slot got:", datum)
         if (datum == null) {
             this.current_datum = null;
-            this.clear();
             return;
         }
         this.current_datum = structuredClone(datum);

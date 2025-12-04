@@ -59,6 +59,31 @@ class SidebarMenuItem extends Widget { /*//DOC
         this.signals.activate = new Signal(`Emitted when this menu item is highlighted/activated`);
     }
 
+
+    clicked_slot() { /* //DOC
+        Emulates click on this menu item
+        */
+        this.clicked()
+    }
+
+    child_activate_slot(obj) { /*//DOC 
+
+        obj:
+            child: item object
+            lis: cumulated list
+
+        - called by the child item(s) of this item
+        - argument lis: list of SiderBarMenuItems propagating from nested levels
+        - Send activate signal (connected to parent)
+        - Activate self
+        */
+
+        var i = this.subMenuItems.indexOf(obj.child)
+        obj.lis.unshift(i)
+        this.signals.activate.emit({child:this, lis:obj.lis})
+        this.activate();
+    }
+
     createState() {
         this.active= false;
         // this.indentLevel = 0;
@@ -201,26 +226,11 @@ class SidebarMenuItem extends Widget { /*//DOC
         else { // an actual item
             this.log(-1,"activateTree ended up in", this);
             this.activate();
+            this.signals.clicked.emit();
         }
     }
 
-    child_activate_slot(obj) { /*//DOC 
 
-        obj:
-            child: item object
-            lis: cumulated list
-
-        - called by the child item(s) of this item
-        - argument lis: list of SiderBarMenuItems propagating from nested levels
-        - Send activate signal (connected to parent)
-        - Activate self
-        */
-
-        var i = this.subMenuItems.indexOf(obj.child)
-        obj.lis.unshift(i)
-        this.signals.activate.emit({child:this, lis:obj.lis})
-        this.activate();
-    }
 }
 
 class SidebarMenu extends Widget { /*//DOC
@@ -326,7 +336,6 @@ class SidebarMenu extends Widget { /*//DOC
     }
 
     child_activate_slot(obj) { /*//DOC
-
         obj:
             child: item object
             lis: cumulated list
@@ -340,6 +349,30 @@ class SidebarMenu extends Widget { /*//DOC
         this.log(-1, "child_activate_slot: hierarchy", this.hierarchy);
         this.deactivate();
         this.serialize();
+    }
+
+    hideItem(itemId) { /*//DOC
+        Hide a menu item by its widget key
+        @param {string} itemId - The key in this.widgets (e.g., "adminItem")
+        */
+        const item = this.widgets[itemId];
+        if (item) {
+            item.getElement().style.display = 'none';
+        } else {
+            this.log(0, `hideItem: No item found with id "${itemId}"`);
+        }
+    }
+
+    showItem(itemId) { /*//DOC
+        Show a menu item by its widget key
+        @param {string} itemId - The key in this.widgets (e.g., "adminItem")
+        */
+        const item = this.widgets[itemId];
+        if (item) {
+            item.getElement().style.display = '';
+        } else {
+            this.log(0, `showItem: No item found with id "${itemId}"`);
+        }
     }
 
     getSerializationValue() {

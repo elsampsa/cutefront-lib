@@ -18,6 +18,7 @@ class DataSourceWidget extends Widget { /*//DOC
     constructor(id, dataSource) {
         super(id);
         this.dataSource = dataSource;
+        this.enabled = true;
         this.createElement();
         this.createState();
     }
@@ -41,6 +42,18 @@ class DataSourceWidget extends Widget { /*//DOC
         this.signals.loading_success = new Signal("Emitted when a datasource operation completes successfully. Carries operation name");
         this.signals.loading_error = new Signal("Emitted when a datasource operation fails. Carries {operation: str, error: object}");
     }
+
+    enable_slot() { /*//DOC
+        Enables the datasource (is enabled by default)
+        */
+        this.enabled=true;
+    }
+
+    disable_slot() { /*//DOC
+        Disables the datasource
+        */
+        this.enabled=false;
+    }
     
     // *** CRUD SLOTS ***
 
@@ -48,6 +61,9 @@ class DataSourceWidget extends Widget { /*//DOC
         Reads data from the dataSource and emits data signal.
         */
         this.log(-1, "read_slot called");
+        if (!this.enabled) {
+            return;
+        }
         this.signals.loading_start.emit('read');
         this.dataSource.read()
             .then((data) => {
@@ -65,6 +81,9 @@ class DataSourceWidget extends Widget { /*//DOC
         Creates a new datum in the dataSource.
         */
         this.log(-1, "create_slot called", datum);
+        if (!this.enabled) {
+            return;
+        }
         this.signals.loading_start.emit('create');
         this.dataSource.create(datum)
             .then((data) => {
@@ -83,6 +102,9 @@ class DataSourceWidget extends Widget { /*//DOC
         :param datum: object with data fields including id
         */
         this.log(-1, "update_slot called", datum);
+        if (!this.enabled) {
+            return;
+        }
         this.signals.loading_start.emit('update');
         this.dataSource.update(datum)
             .then((data) => {
@@ -101,6 +123,9 @@ class DataSourceWidget extends Widget { /*//DOC
         :param par: either string uuid of the item to delete or the whole datum
         */
         this.log(-1, "delete_slot called", par);
+        if (!this.enabled) {
+            return;
+        }
         if (typeof par === 'string') {
             var id = par;
         }
@@ -144,6 +169,9 @@ class DataSourceWidget extends Widget { /*//DOC
         pageInfo == null disables pagination
         */
         this.log(-1, "set_page_slot called", pageInfo);
+        if (!this.enabled) {
+            return;
+        }
         
         // Tell dataSource to update its page state
         this.dataSource.setPage(pageInfo);
@@ -157,6 +185,9 @@ class DataSourceWidget extends Widget { /*//DOC
         :param simulator: NetworkSimulator instance (or null to disable)
         */
         this.log(-1, "set_network_simulator_slot called", simulator);
+        if (!this.enabled) {
+            return;
+        }
         this.dataSource.setNetworkSimulator(simulator);
     }
 
@@ -165,7 +196,9 @@ class DataSourceWidget extends Widget { /*//DOC
         :param authInfo: object with token, refreshToken, etc.
         */
         this.log(-1, "set_auth_slot called", authInfo);
-
+        if (!this.enabled) {
+            return;
+        }
         if (this.dataSource.setAuth) {
             this.dataSource.setAuth(authInfo);
         } else {
@@ -178,7 +211,9 @@ class DataSourceWidget extends Widget { /*//DOC
         Triggers emission of datamodel_create, datamodel_read, datamodel_update signals.
         */
         this.log(-1, "model_slot called");
-        
+        if (!this.enabled) {
+            return;
+        }        
         if (this.dataSource.dataModel) {
             this.signals.datamodel_create.emit(this.dataSource.dataModel.create);
             this.signals.datamodel_read.emit(this.dataSource.dataModel.read);  
@@ -191,8 +226,7 @@ class DataSourceWidget extends Widget { /*//DOC
     // *** INTERNAL METHODS ***
 
     _handleReadResult(data) {
-        this.log(-1, "_handleReadResult", typeof data, data);
-
+        this.log(-1, "_handleReadResult", typeof data, data);   
         // Emit pagination info first if available
         if (this.dataSource.paginationStrategy && this.dataSource.paginationStrategy.enabled) {
             const paginationInfo = this.dataSource.paginationStrategy.getPaginationInfo();
@@ -282,6 +316,10 @@ class DataSourceWidget extends Widget { /*//DOC
         Returns the current dataSource.
         */
         return this.dataSource;
+    }
+
+    isEnabled() {
+        return this.enabled
     }
 
 } // DataSourceWidget

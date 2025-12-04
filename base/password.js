@@ -127,6 +127,33 @@ class PasswordFormField extends BaseFormField { /*//DOC
         this.requirement = null;  // optional PasswordRequirement instance
         this.toggleButton = null;
         this.isVisible = false;
+        this.autocomplete = "current-password";  // default: for login/existing password
+        this.useTextFieldHack = false;  // Use text field styled as password to avoid browser detection
+    }
+
+    setNewPassword(disableSuggestions = false) { /*//DOC
+        Marks this field as for a NEW password (user creation/password reset).
+        Tells browser not to autofill with saved passwords.
+
+        Arguments:
+        disableSuggestions - If true, completely disables browser password dropdown (default: false)
+
+        Returns:
+        this (for method chaining)
+
+        Example:
+        new PasswordFormField("Password").setNewPassword()
+        new PasswordFormField("Password").setNewPassword(true) // no dropdown at all
+        */
+        if (disableSuggestions) {
+            // Ultimate workaround: use text field with password styling
+            // Browsers can't detect this as a password field, so no autofill/dropdown
+            this.useTextFieldHack = true;
+            this.autocomplete = "off";
+        } else {
+            this.autocomplete = "new-password";
+        }
+        return this;
     }
 
     setRequirement(requirement) { /*//DOC
@@ -150,13 +177,39 @@ class PasswordFormField extends BaseFormField { /*//DOC
         */
         let uniquename = unique_name + "-" + randomID();
         let buttonId = randomID();
+        let fakeUsername = randomID();
         this.element = document.createElement("div");
         this.element.classList.add("mb-3");
 
         var line = `
         <label for="${uniquename}" class="form-label">${this.label}</label>
-        <div class="input-group has-validation">
-            <input type="password" class="form-control" id="${uniquename}">
+        `;
+
+        // Add hidden fake username field to confuse browser's autofill detection
+        if (this.autocomplete.startsWith("nope-")) {
+            line += `<input type="text" id="${fakeUsername}" autocomplete="username" style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;" tabindex="-1">`;
+        }
+
+        line += `
+        <div class="input-group has-validation">`;
+
+        if (this.useTextFieldHack) {
+            // Text field styled as password - browsers won't detect it as password field
+            line += `
+            <input type="text" class="form-control" id="${uniquename}"
+                   autocomplete="${this.autocomplete}"
+                   inputmode="text"
+                   style="-webkit-text-security: disc; text-security: disc;"
+                   data-lpignore="true" data-form-type="other">`;
+        } else {
+            // Normal password field
+            line += `
+            <input type="password" class="form-control" id="${uniquename}"
+                   autocomplete="${this.autocomplete}"
+                   data-lpignore="true" data-form-type="other">`;
+        }
+
+        line += `
             <button class="btn btn-outline-secondary" type="button" id="${buttonId}">
                 <i class="bi bi-eye-slash"></i>
             </button>
@@ -180,14 +233,30 @@ class PasswordFormField extends BaseFormField { /*//DOC
         // Setup toggle button click handler
         this.toggleButton.onclick = () => {
             this.isVisible = !this.isVisible;
-            if (this.isVisible) {
-                // Password is now visible - show open eye
-                this.input.type = "text";
-                this.toggleButton.innerHTML = '<i class="bi bi-eye"></i>';
+            if (this.useTextFieldHack) {
+                // Using text field hack - toggle CSS styling instead of input type
+                if (this.isVisible) {
+                    // Password is now visible - remove masking
+                    this.input.style.webkitTextSecurity = 'none';
+                    this.input.style.textSecurity = 'none';
+                    this.toggleButton.innerHTML = '<i class="bi bi-eye"></i>';
+                } else {
+                    // Password is now hidden - restore masking
+                    this.input.style.webkitTextSecurity = 'disc';
+                    this.input.style.textSecurity = 'disc';
+                    this.toggleButton.innerHTML = '<i class="bi bi-eye-slash"></i>';
+                }
             } else {
-                // Password is now hidden - show closed/slashed eye
-                this.input.type = "password";
-                this.toggleButton.innerHTML = '<i class="bi bi-eye-slash"></i>';
+                // Normal password field - toggle input type
+                if (this.isVisible) {
+                    // Password is now visible - show open eye
+                    this.input.type = "text";
+                    this.toggleButton.innerHTML = '<i class="bi bi-eye"></i>';
+                } else {
+                    // Password is now hidden - show closed/slashed eye
+                    this.input.type = "password";
+                    this.toggleButton.innerHTML = '<i class="bi bi-eye-slash"></i>';
+                }
             }
         };
 
