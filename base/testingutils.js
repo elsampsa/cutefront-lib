@@ -25,13 +25,20 @@ class TestingUrlManager { /*//DOC
     }
 
     isTestMode() { /*//DOC
-        Determine if we're in test mode based on URL or protocol
+        Determine if we're in test mode based on URL parameters only
+        File protocol no longer automatically enables test mode
         @returns {boolean} true if in test mode
         */
-        return (
-            this.window.location.protocol === 'file:' ||
-            this.window.location.search.includes(`${this.TESTING_PARAMS.TESTING}=true`)
-        );
+        return this.window.location.search.includes(`${this.TESTING_PARAMS.TESTING}=true`);
+    }
+
+    useMockDataSources() { /*//DOC
+        Determine if we should use mock datasources instead of HTTP datasources
+        Mock datasources are only used when running from file:// protocol
+        URL parameter ?testing=true enables test features but uses real HTTP datasources
+        @returns {boolean} true if mock datasources should be used
+        */
+        return this.window.location.protocol === 'file:';
     }
 
     getNetworkTestFlag() { /*//DOC

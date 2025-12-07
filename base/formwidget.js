@@ -61,6 +61,11 @@ class FormWidget extends Widget {  /*//DOC
             this.input_fields[key] = field;
             this.element.appendChild(field.getElement());
         }
+
+        // Check if debug mode should be activated now that we have a datamodel
+        if (this.debug_mode_activated) {
+            this._setupDebugFeatures();
+        }
     }
     current_datum_slot(datum) { /*//DOC
         Set's the current datum.  Each keys: same keys as in the datamodel
@@ -134,9 +139,8 @@ class FormWidget extends Widget {  /*//DOC
         this.bootstrap_modal.toggle(); // show form
     }
     activate_debug_slot() { /*//DOC
-        Activates debug mode by adding two buttons at the end of the form:
-        "fillValid" and "fillInvalid" for interactive testing.
-        These buttons call this.fillValid() and this.fillInvalid() respectively.
+        Activates debug mode by setting a flag and calling helper method if datamodel exists.
+        This method is timing-independent - it can be called before or after datamodel_slot.
         */
         super.activate_debug_slot(); // cascade to subwidgets first
 
@@ -144,10 +148,29 @@ class FormWidget extends Widget {  /*//DOC
             this.err("activate_debug_slot: element is null");
             return;
         }
+
+        // Set the flag that debug mode has been requested
+        this.debug_mode_activated = true;
+        this.log(-1, "activate_debug_slot: debug mode flag set");
+
+        // If datamodel already exists, set up debug features now
+        if (this.datamodel != null) {
+            this._setupDebugFeatures();
+        } else {
+            this.log(-1, "activate_debug_slot: datamodel not yet set, will activate when datamodel arrives");
+        }
+    }
+
+    _setupDebugFeatures() { /*//DOC
+        Internal helper method that actually adds debug buttons and activates debug on form fields.
+        This is called by either activate_debug_slot() or datamodel_slot(), whichever comes second.
+        */
         if (this.debug_buttons_added) {
-            this.log(-1, "activate_debug_slot: debug buttons already added");
+            this.log(-1, "_setupDebugFeatures: debug buttons already added");
             return;
         }
+
+        this.log(-1, "_setupDebugFeatures: adding debug buttons and activating form fields");
 
         // Create container for debug buttons
         const debugContainer = document.createElement("div");
@@ -178,14 +201,22 @@ class FormWidget extends Widget {  /*//DOC
         // Append to form element
         this.element.appendChild(debugContainer);
 
+        // Activate debug on all form fields
+        for (const field of Object.values(this.input_fields)) {
+            if (field.activate_debug_slot) {
+                field.activate_debug_slot();
+            }
+        }
+
         this.debug_buttons_added = true;
-        this.log(-1, "activate_debug_slot: debug buttons added");
+        this.log(-1, "_setupDebugFeatures: debug features fully activated");
     }
     createState() {
         this.datamodel = null;
         this.current_datum = null;
         this.input_fields = new Object();
-        this.debug_buttons_added = false;
+        this.debug_mode_activated = false; // Flag: has activate_debug_slot been called?
+        this.debug_buttons_added = false;  // Flag: have debug buttons actually been added to DOM?
     }
     createElement() {
         /* Here we use the bootstrap modal API that assumes

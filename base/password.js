@@ -306,9 +306,20 @@ class PasswordFormField extends BaseFormField { /*//DOC
 
     fillValid() { /*//DOC
         Fills the field with valid password test data.
-        Adapts based on whether a requirement is set.
+        If this field has a friend (confirmation field), copies the friend's value.
+        Otherwise, adapts based on whether a requirement is set.
         */
-        if (this.requirement != null) {
+        if (this.friend != null) {
+            // If this is a confirmation field, match the friend's value
+            const friendValue = this.friend.input.value;
+            if (friendValue) {
+                this.set(friendValue);
+            } else {
+                // Friend is empty, fill friend first
+                this.friend.fillValid();
+                this.set(this.friend.input.value);
+            }
+        } else if (this.requirement != null) {
             // If there's a requirement, use a password that meets it
             // StrongPasswordRequirement needs: uppercase, lowercase, digit, special char
             this.set("ValidPass123!");

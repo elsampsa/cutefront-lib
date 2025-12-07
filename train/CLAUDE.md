@@ -229,11 +229,79 @@ On browser back/forward: StateWidget calls each widget's `setState()` with the r
 
 See `../base/statewidget.html` for a working example.
 
+## Timing-Independent Slots (Slot Timing Independence)
+
+When implementing slots that depend on other asynchronous operations, use a timing-independent pattern to avoid race conditions.
+
+### Problem
+
+Consider a widget that needs two things to happen before it can perform an action:
+1. `activate_debug_slot()` is called (user requests debug mode)
+2. `datamodel_slot(schema)` is called (data arrives from backend)
+
+These can happen in **any order** because they're asynchronous. If debug activation depends on the datamodel existing, it may fail if called first.
+
+### Solution Pattern
+
+Decouple the operations using flags and a shared helper method:
+
+```js
+createState() {
+    this.datamodel = null;
+    this.debug_mode_activated = false; // Flag: has activate_debug_slot been called?
+    this.debug_buttons_added = false;  // Flag: are debug features in the DOM?
+}
+
+activate_debug_slot() {
+    // Set the flag that debug mode has been requested
+    this.debug_mode_activated = true;
+
+    // If datamodel already exists, set up features now
+    if (this.datamodel != null) {
+        this._setupDebugFeatures();
+    }
+    // Otherwise, wait for datamodel_slot to call it
+}
+
+datamodel_slot(datamodel) {
+    this.datamodel = datamodel;
+    // ... create form fields ...
+
+    // Check if debug mode should be activated now that we have a datamodel
+    if (this.debug_mode_activated) {
+        this._setupDebugFeatures();
+    }
+}
+
+_setupDebugFeatures() {
+    if (this.debug_buttons_added) return; // Idempotency guard
+
+    // Actually add debug buttons and activate features
+    // ...
+
+    this.debug_buttons_added = true;
+}
+```
+
+### Key Principles
+
+1. **Intent flags** (`debug_mode_activated`): Track what has been *requested*
+2. **State flags** (`debug_buttons_added`): Track what has been *completed*
+3. **Condition checks**: Each slot checks if conditions are met
+4. **Shared helper**: Both slots call the same helper method when conditions are satisfied
+5. **Idempotency guard**: Helper returns early if already executed
+
+This pattern works **regardless of call order**:
+- If `activate_debug_slot()` → `datamodel_slot()`: Helper called from `datamodel_slot()`
+- If `datamodel_slot()` → `activate_debug_slot()`: Helper called from `activate_debug_slot()`
+
+See `../base/formwidget.js` for a real implementation.
+
 ## Conclusions
 
-I hope you got it!  
+I hope you got it!
 
-If I ask for new widgets, please always provide me with both the .js and accompanying .html files.  
+If I ask for new widgets, please always provide me with both the .js and accompanying .html files.
 
 I know you're excited, but please do not provide any files if I don't ask for it explicitly.  :)
 
