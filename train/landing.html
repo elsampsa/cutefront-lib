@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Authentication App</title>
 <link href="../lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 <link href="../lib/include/bootstrap-icons/css/bootstrap-icons.min.css" rel="stylesheet">
@@ -19,18 +20,27 @@
 
 </body>
 <script src="../lib/bootstrap/js/bootstrap.bundle.min.js"></script>
-
+<script>
+    // Global CuteFront configuration - available to all widgets
+    window.CuteFrontPath = {
+        static: './static',
+        assets: './assets',
+        images: './static'
+    };
+</script>
 <script type="module">
 
-const networkTest = true; // Enable network testing widgets
-const isTestMode = (
-    window.location.protocol === 'file:' ||
-    window.location.search.includes('testing=true')
-);
-const useTestPanel = (
-    window.location.search.includes('testing=true') || 
-    window.location.search.includes('test-panel=true')
-)
+// Testing utilities - centralized test mode and parameter management
+import { TestingUrlManager } from '../lib/base/testingutils.js';
+const testManager = new TestingUrlManager(window);
+const isTestMode = testManager.isTestMode();
+const useMockDataSources = testManager.useMockDataSources();
+const networkTest = testManager.getNetworkTestFlag();
+const useTestPanel = testManager.getTestPanelFlag();
+
+// Theme widget - instantiate early to prevent flash
+import { ThemeWidget } from '../lib/base/themewidget.js';
+const themeWidget = new ThemeWidget();
 
 import { ContainerWidget } from '../lib/base/containerwidget.js';
 import { LoginWidget } from './landing/login.js';
@@ -38,21 +48,38 @@ import { ForgotPasswordWidget } from './landing/forgotpassword.js';
 import { SignupWidget } from './landing/signup.js';
 import { AuthUserHTTPDataSource, AuthUserMockDataSource } from './datapi/authuser/datasource.js'
 import { AuthUserDataSourceWidget } from './datapi/authuser/datawidget.js'
-import { FapiAuthModel } from './lib/fapiauthmodel.js'
+import { LocalStorageAuthModel } from '../lib/base/authmodel.js';
 import { BannerWidget } from './lib/banner.js';
 import { LoadingIndicatorWidget } from '../lib/base/loadingindicatorwidget.js';
+import { StateWidget } from '../lib/base/statewidget.js';
+
+const bannerWidget = new BannerWidget();
 
 // datasources and auth
-const authModel = new FapiAuthModel()
 // NOTE: AuthUserMockDataSource is not using datamodel
-if (isTestMode) {
-    var authUserDataSource = new AuthUserMockDataSource(); // (1): mock data source
+if (useMockDataSources) {
+    // file:/// protocol - uses mock datasources for standalone testing
+    var authUserDataSource = new AuthUserMockDataSource();
+    bannerWidget.ok_slot("Using mock data sources (file:// mode)");
+    console.log("using MOCK datasource (file:// protocol)")
 }
 else {
+    // Shared auth model for all datasources
+    var authModel = new LocalStorageAuthModel("access_token");
+
+    // Auto-detect environment and configure base URL
+    let baseUrl;
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        // Second tier: python http.server -> docker backend on port 8000
+        baseUrl = 'http://localhost:8000/api/v1';
+    } else {
+        // Third tier: everything in docker / production - use relative URL (goes through Traefik)
+        baseUrl = '/api/v1';
+    }
+
     var authUserDataSource = new AuthUserHTTPDataSource()
-        .setBaseUrl('http://localhost:8000/api/v1') // (2): read docker exposed port
-        .setAuthModel(new LocalStorageAuthModel("access_token"))
-    // const authUserDataSource = new AuthUserHTTPDataSource().setBaseUrl('http://localhost:8000/api/v1') // (3): as in container! // TODO
+        .setBaseUrl(baseUrl)
+        .setAuthModel(authModel)
 }
 
 const authUserDataSourceWidget = new AuthUserDataSourceWidget('auth-user-datasource-widget', authUserDataSource);
@@ -61,10 +88,12 @@ const authUserDataSourceWidget = new AuthUserDataSourceWidget('auth-user-datasou
 const container = new ContainerWidget("auth-container");
 container.setLogLevel(-1); // debugging
 
+const logoPath = `${window.CuteFrontPath.static}/fastapi-logo.svg`;
+
 // Create all widgets
-const loginWidget = new LoginWidget(null);
-const forgotPasswordWidget = new ForgotPasswordWidget(null);
-const signupWidget = new SignupWidget(null);
+const loginWidget = new LoginWidget(null).setLogo(logoPath)
+const forgotPasswordWidget = new ForgotPasswordWidget(null).setLogo(logoPath)
+const signupWidget = new SignupWidget(null).setLogo(logoPath)
 // Place widgets into container
 container.setItems({
     login: loginWidget,
@@ -72,8 +101,6 @@ container.setItems({
     signup: signupWidget
 });
 
-
-const bannerWidget = new BannerWidget();
 const loadingIndicator = new LoadingIndicatorWidget('loading-indicator');
 loadingIndicator.setLogLevel(-1);
 
@@ -135,7 +162,9 @@ authUserDataSourceWidget.signals.error.connect((message) => {
 authUserDataSourceWidget.signals.signIn_success.connect((data) => {
     console.log("signin success with", data);
     localStorage.setItem("access_token", data.access_token);
-    window.location.href = "layout.html";
+    // Preserve only testing parameters and prevent back navigation
+    const params = testManager.getTestingParams();
+    window.location.replace("layout.html" + params);
 });
 
 // data operations un/block UI
@@ -149,63 +178,92 @@ authUserDataSourceWidget.signals.loading_error.connect(
     (data) => loadingIndicator.loading_error_slot(data)
 );
 
+// Configure state management for browser navigation
+container.setSerializationKey("page").setSerializationWrite(true);
+const stateWidget = new StateWidget();
+stateWidget.setLogLevel(-1); // debugging
+stateWidget.register(container);
 
-// Set logo for all widgets (optional)
-const logoPath = "logo.png"; // Change this to your actual logo path
-loginWidget.setLogo(logoPath);
-forgotPasswordWidget.setLogo(logoPath);
-signupWidget.setLogo(logoPath);
+// Show login widget by default (will be overridden by URL state if present)
+// Note: container.show_slot() is already called by StateWidget.register() via setStates()
+// so we only call it if there's no URL parameter
+const urlParams = new URLSearchParams(window.location.search);
+if (!urlParams.has('page')) {
+    container.show_slot(loginWidget);
+}
 
-// Show login widget by default
-container.show_slot(loginWidget);
-
-window.genDocs = ["authUserDataSourceWidget", "container"]
+window.genDocs = ["authUserDataSourceWidget", "container", "stateWidget"]
 
 // ============================================================================
-// TEST PANEL - Only active in development mode
+// TEST MODE - Activate debug features
+// ============================================================================
+
+if (isTestMode) {
+    console.log("🧪 Test mode enabled - activating debug features");
+    container.activate_debug_slot();
+}
+
+// ============================================================================
+// TEST PANEL - Only active when test-panel parameter is set
 // ============================================================================
 
 if (useTestPanel) {
-    console.log("🧪 Test mode enabled - injecting test panel");
-
-    container.activate_debug_slot();
+    console.log("🧪 Test panel enabled - injecting test panel");
 
     const testPanel = document.getElementById('test-panel');
     testPanel.innerHTML = `
-        <h3>🧪 Test Panel (Development Mode Only)</h3>
-        <p style="color: #666; font-size: 0.9em;">
-            These buttons test signal/slot connections by emitting signals directly.
-            Individual widgets are tested in their own HTML files.
-        </p>
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
-            <button id="test-login-success" class="btn btn-success">
-                ✓ Test Successful Login
-            </button>
-            <button id="test-login-fail" class="btn btn-danger">
-                ✗ Test Failed Login
-            </button>
-            <button id="test-forgot-success" class="btn btn-success">
-                ✓ Test Forgot Password (Success)
-            </button>
-            <button id="test-forgot-fail" class="btn btn-danger">
-                ✗ Test Forgot Password (Not Found)
-            </button>
-            <button id="test-signup-success" class="btn btn-success">
-                ✓ Test Signup (Success)
-            </button>
-            <button id="test-signup-fail" class="btn btn-danger">
-                ✗ Test Signup (Email Exists)
-            </button>
-            <button id="test-me" class="btn btn-info">
-                ℹ Test Get Current User
-            </button>
-        </div>
-        <div id="test-results" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 0.85em;">
-            Test results will appear here...
+        <button id="test-panel-toggle" class="btn btn-sm btn-outline-secondary">
+            Show Test Panel
+        </button>
+        <div id="test-panel-content" style="display: none;">
+            <h3>🧪 Test Panel (Development Mode Only)</h3>
+            <p style="color: #666; font-size: 0.9em;">
+                These buttons test signal/slot connections by emitting signals directly.
+                Individual widgets are tested in their own HTML files.
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+                <button id="test-login-success" class="btn btn-success">
+                    ✓ Test Successful Login
+                </button>
+                <button id="test-login-fail" class="btn btn-danger">
+                    ✗ Test Failed Login
+                </button>
+                <button id="test-forgot-success" class="btn btn-success">
+                    ✓ Test Forgot Password (Success)
+                </button>
+                <button id="test-forgot-fail" class="btn btn-danger">
+                    ✗ Test Forgot Password (Not Found)
+                </button>
+                <button id="test-signup-success" class="btn btn-success">
+                    ✓ Test Signup (Success)
+                </button>
+                <button id="test-signup-fail" class="btn btn-danger">
+                    ✗ Test Signup (Email Exists)
+                </button>
+                <button id="test-me" class="btn btn-info">
+                    ℹ Test Get Current User
+                </button>
+            </div>
+            <div id="test-results" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 0.85em;">
+                Test results will appear here...
+            </div>
         </div>
     `;
 
+    const testPanelContent = document.getElementById('test-panel-content');
+    const testPanelToggle = document.getElementById('test-panel-toggle');
     const testResults = document.getElementById('test-results');
+
+    // Toggle collapse/expand
+    testPanelToggle.onclick = () => {
+        if (testPanelContent.style.display === 'none') {
+            testPanelContent.style.display = '';
+            testPanelToggle.textContent = 'Hide Test Panel';
+        } else {
+            testPanelContent.style.display = 'none';
+            testPanelToggle.textContent = 'Show Test Panel';
+        }
+    };
 
     // Helper to display test results
     function showResult(message, isError = false) {

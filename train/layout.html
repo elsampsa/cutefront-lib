@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CuteFront App</title>
     <link href="../lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="../lib/include/bootstrap-icons/css/bootstrap-icons.min.css" rel="stylesheet">
@@ -15,9 +16,21 @@
             z-index: 100;
             padding: 48px 0 0;
             box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            width: 250px;
         }
         .main-content {
             margin-left: 250px; /* Adjust based on your sidebar width */
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 767px) {
+            .sidebar {
+                width: 100%;
+                padding: 0;
+            }
+            .main-content {
+                margin-left: 0;
+            }
         }
     </style>
 </head>
@@ -34,14 +47,33 @@
     <div id="network-sim"></div>
     <div id="loading-indicator"></div>
 
+    <!-- Test panel - will be populated only in development mode -->
+    <div id="test-panel" style="margin-top: 2rem; padding: 1rem; border-top: 2px solid #ccc;"></div>
+
     <script src="../lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global CuteFront configuration - available to all widgets
+        window.CuteFrontPath = {
+            static: './static',
+            assets: './assets',
+            images: './static'
+        };
+    </script>
     <script type="module">
-        const isTestMode = (
-            window.location.protocol === 'file:' ||
-            window.location.search.includes('testing=true')
-        );
-        const networkTest = true; // Enable network testing widgets
+        // Testing utilities - centralized test mode and parameter management
+        import { TestingUrlManager } from '../lib/base/testingutils.js';
+        const testManager = new TestingUrlManager(window);
+        const isTestMode = testManager.isTestMode();
+        const useMockDataSources = testManager.useMockDataSources();
+        const networkTest = testManager.getNetworkTestFlag();
+        const useTestPanel = testManager.getTestPanelFlag();
+
+        // Theme widget - instantiate early to prevent flash
+        import { ThemeWidget } from '../lib/base/themewidget.js';
+        const themeWidget = new ThemeWidget();
+
         import { ElementWidget } from '../lib/base/widget.js';
+        import { StateWidget } from '../lib/base/statewidget.js';
         import { ContainerWidget } from '../lib/base/containerwidget.js';
         import { FapiGroup } from './lib/fapigroup.js';
         import { SidebarMenuItem } from '../lib/base/sidebarwidget.js';
@@ -70,8 +102,11 @@
         import { UserDataModel } from './datapi/user/datamodel.js';
         import { UserDataSourceWidget } from './datapi/user/datawidget.js';
         
+        const bannerWidget = new BannerWidget();
+
         // datasources
-        if (isTestMode) {
+        if (useMockDataSources) {
+            // file:/// protocol - uses mock datasources for standalone testing
             var authUserDataSource = new AuthUserMockDataSource(); // NOTE: not using datamodel
             var itemDataSource = new ItemMockDataSource()
                 .setDataModel(new ItemDataModel()).setUUIDKey("id")
@@ -79,23 +114,38 @@
             var userDataSource = new UserMockDataSource()
                 .setDataModel(new UserDataModel()).setUUIDKey("id")
                 .setPaginationStrategy(new FapiPaginationStrategy())
-        } 
+            bannerWidget.ok_slot("Using mock data sources (file:// mode)");
+            console.log("using MOCK datasource (file:// protocol)")
+        }
         else {
+            // Shared auth model for all datasources
+            var authModel = new LocalStorageAuthModel("access_token");
+
+            // Auto-detect environment and configure base URL
+            let baseUrl;
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                // Second tier: python http.server -> docker backend on port 8000
+                baseUrl = 'http://localhost:8000/api/v1';
+            } else {
+                // Third tier: everything in docker / production - use relative URL (goes through Traefik)
+                baseUrl = '/api/v1';
+            }
+
             var authUserDataSource = new AuthUserHTTPDataSource()
-                .setBaseUrl('http://localhost:8000/api/v1')
-                .setAuthModel(new LocalStorageAuthModel("access_token"))
+                .setBaseUrl(baseUrl)
+                .setAuthModel(authModel)
             var itemDataSource = new ItemHTTPDataSource()
-                .setBaseUrl('http://localhost:8000/api/v1')
+                .setBaseUrl(baseUrl)
                 .setDataModel(new ItemDataModel())
                 .setUUIDKey("id")
                 .setPaginationStrategy(new FapiPaginationStrategy())
-                .setAuthModel(new LocalStorageAuthModel("access_token"))
+                .setAuthModel(authModel)
             var userDataSource = new UserHTTPDataSource()
-                .setBaseUrl('http://localhost:8000/api/v1')
+                .setBaseUrl(baseUrl)
                 .setDataModel(new UserDataModel())
                 .setUUIDKey("id")
                 .setPaginationStrategy(new FapiPaginationStrategy())
-                .setAuthModel(new LocalStorageAuthModel("access_token"))
+                .setAuthModel(authModel)
         }
 
         // Create all widgets
@@ -129,7 +179,6 @@
             );
         }
 
-        const bannerWidget = new BannerWidget();
         const authUserFloaterWidget = new AuthUserFloaterWidget("userFloater");
         // sections
         const dashboardSection = new DashboardSection();
@@ -149,14 +198,9 @@
             adminSection: adminSection,
         })
         
-        // Define sidebarwidget
-        const fapiSidebar = new FapiSidebar("sidebar");
-        fapiSidebar.setItems({
-            dashboardItem: new SidebarMenuItem('Dashboard', 'dashboard', 'fas fa-home'),
-            itemsItem: new SidebarMenuItem('Items', 'items', 'fas fa-box'),
-            userSettingsItem: new SidebarMenuItem('User Settings', 'user-settings', 'fas fa-cog'),
-            adminItem: new SidebarMenuItem('Admin', 'admin', 'fas fa-user')
-        });
+        // Define sidebarwidget with programmatic item creation
+        const fapiSidebar = new FapiSidebar("sidebar").createItems();
+
         // Clicking sidebar widget's menu elements reveals different sections from container
         fapiSidebar.widgets.dashboardItem.signals.clicked.connect((id)=>container.show_slot(container.widgets.dashboardSection));
         fapiSidebar.widgets.itemsItem.signals.clicked.connect((id)=>container.show_slot(container.widgets.itemsSection));
@@ -263,7 +307,15 @@
             userDataSourceWidget.delete_slot(datum)
         )
 
-        // change user data connections to authUserDataSource
+        // Theme connections
+        // AppearanceWidget -> ThemeWidget (user selects theme)
+        container.widgets.settingsSection.widgets.tab.widgets.appearance.signals.modeChanged.connect(
+            (mode) => themeWidget.set_theme_slot(mode)
+        );
+        // Initialize AppearanceWidget with current theme from ThemeWidget
+        container.widgets.settingsSection.widgets.tab.widgets.appearance.set_mode_slot(themeWidget.getMode());
+
+        // change user data --> authUserDataSource
         container.widgets.settingsSection.signals.update_user_data.connect((datum) =>
             authUserDataSourceWidget.updateMe_slot(datum)
         );
@@ -275,9 +327,19 @@
         );
         
         // connections from authUserDataSource to GUI widgets
-        authUserDataSourceWidget.signals.me.connect((datum) =>
-            fapiSidebar.setAuthUser_slot(datum)
-        );
+        authUserDataSourceWidget.signals.me.connect((datum) => {
+            fapiSidebar.setAuthUser_slot(datum);
+            container.widgets.dashboardSection.set_user_slot(datum);
+            // container.widgets.settingsSection.widgets.tab.widgets.authUserInfo.set_datum_slot(datum); // not used..
+            container.widgets.adminSection.widgets.userList.set_current_user_slot(datum);
+        })
+        // success/error msgs
+        authUserDataSourceWidget.signals.message.connect((msg) => {
+            bannerWidget.ok_slot(msg)
+        })
+        authUserDataSourceWidget.signals.error.connect((msg) => {
+            bannerWidget.error_slot(msg)
+        })
         // data operations un/block UI
         authUserDataSourceWidget.signals.loading_start.connect(
             (op) => loadingIndicator.loading_start_slot(op)
@@ -290,25 +352,136 @@
         );
         // connections from floating widget for user shortcuts
         authUserFloaterWidget.signals.profile.connect(() =>
-            container.show_slot(container.widgets.settingsSection)
+            fapiSidebar.widgets.userSettingsItem.clicked_slot()
         )
         authUserFloaterWidget.signals.logout.connect(() => {
-            window.location.href = "landing.html";
+            if (authModel) authModel.clear(); // clear token from localStorage
+            // Preserve only testing parameters and prevent back navigation
+            const params = testManager.getTestingParams();
+            window.location.replace("landing.html" + params);
         })
 
+        // Centralized 401 Unauthorized handler for all datasource widgets
+        const handle401Error = (error) => {
+            if (error.status === 401) {
+                const userConfirmed = confirm(
+                    "Your session has expired or you are not authorized.\n\n" +
+                    "Would you like to return to the login page?"
+                );
+                if (userConfirmed) {
+                    if (authModel) authModel.clear(); // clear token from localStorage
+                    const params = testManager.getTestingParams();
+                    window.location.replace("landing.html" + params);
+                }
+            }
+        };
+        // Connect 401 handler to all datasource widgets
+        authUserDataSourceWidget.signals.error.connect(handle401Error);
+        itemDataSourceWidget.signals.error.connect(handle401Error);
+        userDataSourceWidget.signals.error.connect(handle401Error);
+        
+        authUserDataSourceWidget.signals.me.connect((user) => {
+            if (user.is_superuser) {
+                userDataSourceWidget.model_slot() // propagate datamodel
+                userDataSourceWidget.read_slot() // send data
+            }
+            else {
+                console.log("superuser disabled!")
+                userDataSourceWidget.disable_slot()
+            }
+        })
+
+        authUserDataSourceWidget.me_slot() // propagate info of current user (must be before userDataSourceWidget.read_slot)
         itemDataSourceWidget.model_slot() // propagate datamodel
         itemDataSourceWidget.read_slot() // send data
 
-        userDataSourceWidget.model_slot() // propagate datamodel
-        userDataSourceWidget.read_slot() // send data
+        // Configure serialization
+        fapiSidebar.setSerializationKey("nav").setSerializationWrite(true);
+        // Create StateWidget and register
+        const stateWidget = new StateWidget();
+        stateWidget.setLogLevel(-1);
+        stateWidget.register(fapiSidebar);
 
-        authUserDataSourceWidget.me_slot() // propagate info of current user
+        window.genDocs = ["fapiSidebar", "container", "authUserDataSourceWidget", "itemDataSourceWidget","userDataSourceWidget","authUserFloaterWidget", "bannerWidget"]
 
-        window.genDocs = ["container", "itemDataSourceWidget","userDataSourceWidget","authUserFloaterWidget"]
+        // ============================================================================
+        // TEST MODE - Activate debug features
+        // ============================================================================
 
         if (isTestMode) {
-            console.log("🧪 Test mode enabled - injecting test panels");
+            console.log("🧪 Test mode enabled - activating debug features");
             container.activate_debug_slot();
+        }
+
+        // ============================================================================
+        // TEST PANEL - Only active when test-panel parameter is set
+        // ============================================================================
+
+        if (useTestPanel) {
+            console.log("🧪 Test panel enabled - injecting test panel");
+
+            const testPanel = document.getElementById('test-panel');
+            testPanel.innerHTML = `
+                <button id="test-panel-toggle" class="btn btn-sm btn-outline-secondary">
+                    Show Test Panel
+                </button>
+                <div id="test-panel-content" style="display: none;">
+                    <h3>🧪 Test Panel (Development Mode Only)</h3>
+                    <p style="color: #666; font-size: 0.9em;">
+                        Test user role switching and sidebar visibility.
+                    </p>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+                        <button id="test-set-superuser" class="btn btn-primary">
+                            Switch to Admin User
+                        </button>
+                        <button id="test-set-normaluser" class="btn btn-secondary">
+                            Switch to Normal User
+                        </button>
+                    </div>
+                    <div id="test-results" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 0.85em;">
+                        Current role: <span id="role-text">-</span>
+                    </div>
+                </div>
+            `;
+
+            const testResults = document.getElementById('test-results');
+            const roleText = document.getElementById('role-text');
+            const testPanelContent = document.getElementById('test-panel-content');
+            const testPanelToggle = document.getElementById('test-panel-toggle');
+
+            // Toggle collapse/expand
+            testPanelToggle.onclick = () => {
+                if (testPanelContent.style.display === 'none') {
+                    testPanelContent.style.display = '';
+                    testPanelToggle.textContent = 'Hide Test Panel';
+                } else {
+                    testPanelContent.style.display = 'none';
+                    testPanelToggle.textContent = 'Show Test Panel';
+                }
+            };
+
+            // Update role display whenever user data changes
+            authUserDataSourceWidget.signals.me.connect((datum) => {
+                const roleInfo = datum.is_superuser ?
+                    '👑 Admin (is_superuser: true)' :
+                    '👤 Normal User (is_superuser: false)';
+                roleText.textContent = roleInfo;
+                console.log("User role updated:", roleInfo);
+            });
+
+            // Switch to superuser
+            document.getElementById('test-set-superuser').onclick = () => {
+                console.log("🧪 Switching to superuser...");
+                authUserDataSource.setSuperUser();
+                authUserDataSourceWidget.me_slot();
+            };
+
+            // Switch to normal user
+            document.getElementById('test-set-normaluser').onclick = () => {
+                console.log("🧪 Switching to normal user...");
+                authUserDataSource.setNormalUser();
+                authUserDataSourceWidget.me_slot();
+            };
         }
     </script>
 </body>
