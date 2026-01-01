@@ -1,9 +1,10 @@
 import { Widget, Signal } from '../base/widget.js';
 
-class Marked extends Widget { /*//DOC
-    Renders given markdown as html
+class MarkedWidget extends Widget { /*//DOC
+    Renders given markdown as html.
+    Can be created dynamically without an id parameter.
     */
-    constructor(id) {
+    constructor(id = null) {
         super(id);
         this.createElement();
         this.createState();
@@ -34,18 +35,18 @@ class Marked extends Widget { /*//DOC
         this.render("")
     }
     render_file_slot(fname) { /*//DOC
-        render markdown from a file in a relative path, say: 
+        render markdown from a file in a relative path, say:
         ./text.md or ../text.md or ../someplace_else/text.md, etc.
         */
         const url = new URL(fname, window.location);
         this.log(-1, "render_file_slot:", url.href);
         this.read(url.href).then( resp => {
             if (resp) {
-                this.signals.file_read_ok.emit();
                 this.render(resp);
+                this.signals.file_read_ok.emit();
             }
             else {
-            } 
+            }
         })
     }
     render_file_origin_slot(fname) { /*//DOC
@@ -60,21 +61,28 @@ class Marked extends Widget { /*//DOC
         this.log(-1, "render_file_root_slot:", url.href);
         this.read(url.href).then( resp => {
             if (resp) {
-                this.signals.file_read_ok.emit();
                 this.render(resp);
+                this.signals.file_read_ok.emit();
             }
         })
     }
     createState() {
     }
     createElement() {
-        this.element = document.getElementById(this.id)
+        this.autoElement();
         if (this.element == null) {
-            this.err("could not find element with id", this.id)
-            return
+            this.err("could not create element");
+            return;
         }
     }
     render(input) {
+        // Configure marked to add IDs to headings (GitHub-style)
+        // This allows deep-linking to specific sections in markdown
+        marked.use({
+            headerIds: true,
+            mangle: false  // Don't mangle IDs for better readability
+        });
+
         this.element.innerHTML =
             marked.parse(input);
     }
@@ -112,6 +120,7 @@ class Marked extends Widget { /*//DOC
         return txt
     }
 
-} // Marked
+} // MarkedWidget
 
-export { Marked }
+// Export both names for backwards compatibility
+export { MarkedWidget, MarkedWidget as Marked }
