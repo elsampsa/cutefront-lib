@@ -152,11 +152,14 @@ class HateLike extends Widget { /*//DOC
         this.counter_field = this.element.querySelector(`#${uuid3}`);
         this.like = inputs[0];
         this.hate = inputs[1];
-        this.like.onclick = (event) => { // LLM: use always the "= (event) => {}" syntax
+        // LLM: use always the "= (event) => {}" syntax
+        // LLM: Note: event.preventDefault() is NOT needed here because these are <input> elements, not <a> tags
+        // LLM: Only <a href="#"> links need preventDefault() to avoid unwanted browser history entries
+        this.like.onclick = (event) => {
             this.flike();
             this.signals.message.emit("I like Cutefront")
         }
-        this.hate.onclick = (event) => { // LLM: use always the "= (event) => {}" syntax
+        this.hate.onclick = (event) => {
             this.fhate();
             this.signals.message.emit("I hate Cutefront")
         }

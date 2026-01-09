@@ -22,6 +22,7 @@ class StateWidget extends Widget { /*//DOC
     createState() {
         this.widgets = {};  // { serializationKey: widget }
         this.state = {};    // { serializationKey: serializationValue }
+        this.lastPushTime = 0;  // Timestamp of last pushState call to ignore immediate popstate
     }
     register(...widgets) { /*//DOC
         Register widgets for state management.
@@ -66,12 +67,24 @@ class StateWidget extends Widget { /*//DOC
         // Add event listener for browser back/forward buttons
         window.addEventListener('popstate', (event) => {
             this.log(-1, "popstate", event);
-            if (event.state && event.state.ignore) {
-                this.log(-1, "popstate: ignoring");
+
+            // Ignore popstate events that occur within 50ms of our pushState call
+            // This handles browser quirks where pushState might trigger popstate
+            const timeSinceLastPush = Date.now() - this.lastPushTime;
+            if (timeSinceLastPush < 50) {
+                this.log(-1, "popstate: ignoring (triggered by our pushState, time since push:", timeSinceLastPush + "ms)");
                 return;
             }
+
+            if (event.state && event.state.ignore) {
+                this.log(-1, "popstate: ignoring (state.ignore flag)");
+                return;
+            }
+
             // User clicked browser's back/forward buttons
             // Get state from URL and restore widget states
+            this.log(-1, "popstate: handling (time since last push:", timeSinceLastPush + "ms)");
+            this.log(-1, "popstate: URL:", window.location.href);
             this.pull();
             this.setStates();
         });
@@ -122,6 +135,8 @@ class StateWidget extends Widget { /*//DOC
         */
         const newUrl = this.genUrl();
         this.log(-1, "push: pushState", newUrl.href);
+        // Record timestamp to ignore any immediate popstate events
+        this.lastPushTime = Date.now();
         window.history.pushState(
             { ignore: false }, null, newUrl.href
         );
@@ -137,6 +152,7 @@ class StateWidget extends Widget { /*//DOC
     }
     genUrl() { /*//DOC
         Generates a new URL with search parameters from this.state.
+        Removes empty hash fragments (#) to avoid duplicate history entries.
         :returns: URL object
         */
         const newUrl = new URL(window.location.href);
@@ -149,6 +165,10 @@ class StateWidget extends Widget { /*//DOC
             }
         }
         newUrl.search = searchParams.toString();
+        // Remove empty hash (just '#' with nothing after) to prevent duplicate history entries
+        if (newUrl.hash === '#') {
+            newUrl.hash = '';
+        }
         this.log(-1, "genUrl:", newUrl.href);
         return newUrl;
     }

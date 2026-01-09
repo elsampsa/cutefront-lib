@@ -119,7 +119,10 @@ class SidebarMenuItem extends Widget { /*//DOC
         this.collapseElement = this.element.querySelector(`#sub-collapse-${uuid1}`);
         this.subItemsElement = this.element.querySelector(`#sub-items-${uuid1}`);
         this.collapseIcon.style.visibility = 'hidden';
-        this.itemElement.onclick = () => { this.clicked() };
+        this.itemElement.onclick = (event) => {
+            event.preventDefault();  // Prevent # from being added to URL
+            this.clicked();
+        };
     }
 
     /* // not needed..

@@ -71,11 +71,13 @@ Each test html file can be run in chrome with the `--allow-file-access-from-file
 More complex single-page applications (SPAs) can also be opened in the same way: the page has internal logic so that it goes into debug state
 when opened as a file.  In the debug state it typically uses mock datasources, adds testing panels, etc.
           
-_You_ can use this too: there is a custom tool named "cute-browser" where you get "hands and eyes" on the web-page and browsing!  Please try this for more info:
+Claude: YOU can use this too: there is a custom tool named "cute-browser" where you get "hands and eyes" on the web-page and browsing!  Please try this for more info:
 ```bash
 cute-browser --help
 ```
 For local testing, you should use the `--local` flag that allows local js file access.
+To emphasize: `cute-browser` is meant for LLM agents like you (not for humans) so that you can quick-test the page.
+Please start always with `cute-browser --help` to get an idea how the tool works.
 
 You can remove additional testing panels by defining these URL-encoded parameters when opening the SPA html file:
 ```
