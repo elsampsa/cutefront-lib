@@ -23,8 +23,8 @@ class TabWidget extends Group {
         */
 
         this.element.innerHTML = `
-            <ul class="nav nav-tabs flex-grow-1" role="tablist"></ul>
-            <div class="tab-content mt-2 w-100"></div>
+            <ul class="nav nav-tabs" role="tablist"></ul>
+            <div class="tab-content mt-2 w-100 flex-grow-1" style="min-height: 0;"></div>
         `;
 
         this.tabList = this.element.querySelector('.nav-tabs');
