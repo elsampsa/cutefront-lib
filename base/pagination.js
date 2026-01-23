@@ -126,4 +126,4 @@ class QueryParamPagination extends PaginationStrategy {
     }
 }
 
-export { PaginationStrategy, QueryParamPagination}
+export { PaginationStrategy, QueryParamPagination }
