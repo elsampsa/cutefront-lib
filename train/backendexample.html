@@ -1,0 +1,179 @@
+<!--
+Beginning of file "backendexample.html"
+Basic testing/visualization for ExampleHTTPDataSource, ExampleMockDataSource and
+ExampleDataSourceWidget, defined in "backendexample.js".
+
+Everything here is wired purely with signals & slots - there is no manual async/await between
+clicking a button and seeing the result: click -> widget emits a signal -> slot call ->
+dataSource Promise resolves -> signal emitted -> status widget's slot updates the DOM.
+
+Note: this html file itself only instantiates widgets and connects their signals/slots - no
+buttons or other DOM manipulation happens here, that's the control widget's job.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backend Example Test</title>
+<link href="../bootstrap/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ExampleDataSourceWidget renders no HTML of its own, it just needs an id -->
+<div id="datasource-widget"></div>
+
+<div id="controls"></div>
+
+<p>Status: <span id="status"></span></p>
+
+</body>
+<script src="../bootstrap/js/bootstrap.bundle.min.js"></script>
+
+<script type="module">
+
+import { Widget, Signal, randomID } from '../base/widget.js';
+import { ExampleMockDataSource, ExampleDataSourceWidget } from './backendexample.js';
+
+/*
+Demo-only widgets, defined right here in the html instead of their own .js files since they're
+one-offs for this test page, not part of the reusable base library.
+*/
+
+class ExampleControlWidget extends Widget { /*//DOC
+    Renders the "get some" / "post some" / "post some (fail)" / "post form data" buttons and
+    fires a signal for each click - it never calls ExampleDataSourceWidget directly, the html
+    file connects the signals below to the matching slots.
+    */
+    constructor(id) {
+        super(id);
+        this.createElement();
+        this.createState();
+    }
+
+    createSignals() {
+        this.signals.get_some = new Signal("User clicked 'get some'. Carries nothing.");
+        this.signals.post_some = new Signal("User clicked 'post some' or 'post some (fail)'. Carries a datum object.");
+        this.signals.post_form_data = new Signal("User clicked 'post form data'. Carries a datum object.");
+    }
+
+    createState() {
+    }
+
+    createElement() {
+        this.autoElement();
+        if (this.element == null) {
+            this.err("could not find element with id", this.id);
+            return;
+        }
+        let uuid1 = randomID();
+        let uuid2 = randomID();
+        let uuid3 = randomID();
+        let uuid4 = randomID();
+        this.element.innerHTML = `
+        <button id="${uuid1}">get some</button>
+        <button id="${uuid2}">post some</button>
+        <button id="${uuid3}">post some (fail)</button>
+        <button id="${uuid4}">post form data</button>
+        `;
+        this.element.querySelector(`#${uuid1}`).onclick = (event) => {
+            this.signals.get_some.emit();
+        };
+        this.element.querySelector(`#${uuid2}`).onclick = (event) => {
+            this.signals.post_some.emit({ hello: "world" });
+        };
+        this.element.querySelector(`#${uuid3}`).onclick = (event) => {
+            this.signals.post_some.emit({ fail: true });
+        };
+        this.element.querySelector(`#${uuid4}`).onclick = (event) => {
+            this.signals.post_form_data.emit({ hello: "form-world" });
+        };
+    }
+}
+
+/*
+Shows the result of getSome() (or a plain "OK" for post/post-form) in green, or the last
+error in red.
+*/
+class ExampleStatusWidget extends Widget {
+    constructor(id) {
+        super(id);
+        this.createElement();
+        this.createState();
+    }
+
+    createSignals() {} // this widget only receives signals, it emits none
+
+    data_slot(data) { /*//DOC
+        Connect to ExampleDataSourceWidget.signals.someData.
+        data: whatever json the backend returned for getSome()
+        */
+        this.text_field.className = "text-success";
+        this.text_field.innerText = JSON.stringify(data);
+    }
+
+    success_slot() { /*//DOC
+        Connect to ExampleDataSourceWidget.signals.success.
+        Carries nothing - just confirms the last write operation succeeded.
+        */
+        this.text_field.className = "text-success";
+        this.text_field.innerText = "OK";
+    }
+
+    error_slot(error) { /*//DOC
+        Connect to ExampleDataSourceWidget.signals.error.
+        error = { message: str, status: int, body }
+        */
+        this.text_field.className = "text-danger";
+        this.text_field.innerText = `${error.message} (status ${error.status})`;
+    }
+
+    createState() {
+        if (this.element == null) {
+            return;
+        }
+        this.text_field.innerText = "";
+    }
+
+    createElement() {
+        this.autoElement();
+        if (this.element == null) {
+            this.err("could not find element with id", this.id);
+            return;
+        }
+        let uuid = randomID();
+        this.element.innerHTML = `<span id="${uuid}"></span>`;
+        this.text_field = this.element.querySelector(`#${uuid}`);
+    }
+}
+
+var mockDataSource = new ExampleMockDataSource();
+var dataSourceWidget = new ExampleDataSourceWidget("datasource-widget", mockDataSource);
+var controlWidget = new ExampleControlWidget("controls");
+var statusWidget = new ExampleStatusWidget("status");
+
+dataSourceWidget.setLogLevel(-1); // debugging
+
+controlWidget.signals.get_some.connect(() =>
+    dataSourceWidget.get_some_slot()
+);
+controlWidget.signals.post_some.connect((datum) =>
+    dataSourceWidget.post_some_slot(datum)
+);
+controlWidget.signals.post_form_data.connect((datum) =>
+    dataSourceWidget.post_form_data_slot(datum)
+);
+
+dataSourceWidget.signals.someData.connect((data) =>
+    statusWidget.data_slot(data)
+);
+dataSourceWidget.signals.success.connect(() =>
+    statusWidget.success_slot()
+);
+dataSourceWidget.signals.error.connect((error) =>
+    statusWidget.error_slot(error)
+);
+
+</script>
+</html>
+<!-- End of file "backendexample.html" -->

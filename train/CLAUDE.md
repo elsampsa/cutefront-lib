@@ -140,12 +140,31 @@ More complex testing panels can be implemented in the main html file itself.
 
 ## Backend data
 
-How data is received from the backend and inserted to the widgets, is handled by datasource widgets.  Please keep an eye on these files:
+How data is received from the backend and inserted to the widgets, is handled by datasource widgets.
+
+For a minimal, self-contained example with no `DataModel` involved - just a `GET`, a `POST` with a
+JSON body, and a `POST` with `multipart/form-data`, wired purely through signals & slots - read:
+
+./backendexample.js
+./backendexample.html
+
+Please READ THEM NOW.  The header comment in `backendexample.js` also documents the helper methods
+and signals already available on the base `DataSource`, `HTTPDataSource` and `DataSourceWidget`
+classes, so you don't need to go digging through those base files just to find out what's already
+there:
+
 ```
-../base/datamodel.js : `DataModel` defines the structure of the data records.  
-../base/datasource.js : `DataSource` defines CRUD operations.
+../base/datasource.js : `DataSource` defines CRUD operations, and its `MockDataSource` subclass lets you fake a backend for testing
 ../base/httpdatasource.js : `HTTPDataSource` : HTTP implementation of the datasource
 ../base/datasourcewidget.js : `DataSourceWidget` coordinates UI interaction and signals and slots of a datasource
+```
+
+### More advanced: DataModel, adaptive forms, auth & pagination
+
+Real backends usually need more than `backendexample.js` shows:
+
+```
+../base/datamodel.js : `DataModel` defines the structure of the data records, and can drive adaptive forms (see "Forms and fields" above)
 ../base/authmodel.js : `AuthModel` is an authentication model for httpdatasource (injects auth data into the request, say, a token)
 ```
 
@@ -154,14 +173,25 @@ const itemDataModel = new ItemDataModel(); // defines what datarecords have .. s
 const itemDataSource = new MockDataSource().setDataModel(itemDataModel).setUUIDKey("id"); // 
 const itemDataSourceWidget = new DataSourceWidget('item-datasource-widget', itemDataSource);
 ```
-`HTTPDataSource` class has these methods:
+`HTTPDataSource` class also has these methods for the advanced cases:
 ```js
 setBaseUrl(url)
 setAuthModel(authModel) 
 setPaginationStrategy(strategy) 
 ```
-What we typically do, is to the create mock data sources that imitate the actual datasources and then finally switch from the mock
+What we typically do, is to create mock data sources that imitate the actual datasources and then finally switch from the mock
 to the actual (http(s)) datasource.
+
+None of this - `DataModel`, `AuthModel`, pagination, adaptive forms - is covered in this training
+material. For a real, working example of all of it wired together, take a look at `./landing.html`
+and `./layout.html` in this same folder (as mentioned above) - though note that the widgets they use
+(`ItemDataSourceWidget`, `AuthUserFloaterWidget`, etc.) are app-specific widgets ripped from a real
+project, not part of this training library, so don't expect matching `.js`/`.html` training pairs
+for them here.
+
+For the full picture, including the actual FastAPI backend these widgets talk to: ask me for the
+directory of the fullstack FastAPI example project. I haven't given it to you by default, but I'm
+happy to point you to it or grant access when you actually need to dig into it.
 
 ## State Management
 
