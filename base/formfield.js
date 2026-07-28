@@ -284,6 +284,77 @@ class IntegerFormField extends BaseFormField { /*//DOC
     }
 }
 
+class FloatFormField extends BaseFormField { /*//DOC
+    A form field for decimal number input - same as IntegerFormField, but any real number is
+    valid, not just whole ones. Use this for values that come from a live hardware readback
+    (e.g. a sensor's gain in dB) which will rarely land on a clean integer.
+    */
+    constructor(label, help = undefined) {
+        super(label, help);
+    }
+
+    createElement(unique_name) { /*//DOC
+        Creates an HTML number input field (step="any", so the browser's own up/down arrows -
+        and typing - don't quietly round to whole numbers).
+        */
+        let uniquename = unique_name + "-" + randomID();
+        this.element = document.createElement("div");
+        this.element.classList.add("mb-3");
+
+        var line = `
+        <label for="${uniquename}" class="form-label">${this.label}</label>
+        <input type="number" step="any" class="form-control" id="${uniquename}">
+        <div class="valid-feedback">ok!</div>
+        `;
+
+        if (this.help != undefined) {
+            line += `
+            <div class="form-text">${this.help}</div>
+            `;
+        }
+
+        this.element.innerHTML = line;
+
+        this.input = this.element.getElementsByTagName("input").item(0);
+        this.valid_msg = this.element.getElementsByClassName("valid-feedback").item(0);
+
+        // Clear validation warnings when user starts typing
+        this.input.addEventListener("input", () => {
+            this.clearWarnings();
+        });
+    }
+
+    check(value) { /*//DOC
+        Validates that the input is a valid (decimal or whole) number.
+
+        Returns:
+        {value: number, error: null} if valid
+        {value: null, error: "error message"} if invalid
+        */
+        const str = String(value);
+        if (str.length < 1) {
+            return { value: null, error: "This field cannot be empty" };
+        }
+        const num = Number(str);
+        if (isNaN(num)) {
+            return { value: null, error: "Please enter a valid number" };
+        }
+        return { value: num, error: null };
+    }
+
+    fillValid() { /*//DOC
+        Fills the field with valid decimal test data.
+        */
+        this.set(42.5);
+    }
+
+    fillInvalid() { /*//DOC
+        Fills the field with invalid test data (not a number).
+        */
+        this.set("not a number");
+    }
+}
+
 class BooleanFormField extends BaseFormField { /*//DOC
     A form field for boolean input, rendered as a checkbox.
 
@@ -829,5 +900,5 @@ class SelectFormField extends BaseFormFieldWidget { /*//DOC
     }
 }
 
-export { BaseFormField, FreeStringFormField, IntegerFormField, BooleanFormField, EmailFormField, TextAreaFormField, BaseFormFieldWidget, SelectFormField };
+export { BaseFormField, FreeStringFormField, IntegerFormField, FloatFormField, BooleanFormField, EmailFormField, TextAreaFormField, BaseFormFieldWidget, SelectFormField };
 /*LLM: End of file "formfield.js" */
