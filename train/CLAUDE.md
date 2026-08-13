@@ -122,6 +122,44 @@ cute-get-api-tree landing.html
 ```
 It takes the widget instances named "container", "itemDataSourceWidget", etc., dumps their API (signals, slots, subwidgets, etc.) into a hierarchical yaml file into the stdout.
 
+### Composing a widget out of other widgets
+
+A "composite" widget owns other widgets as internal members instead of (or in addition to) its own plain HTML. Conventions, confirmed against a real-world example (`fullstack-fastapi-cutefront`'s `AdminSection`):
+
+- If the composite widget is meant to place itself (rather than hook into a pre-existing DOM element the caller provides), its constructor takes no `id` and calls `super(null)`:
+```js
+class AdminSection extends Widget {
+    constructor() {
+        super(null); // floating element - autoElement() will create one
+        this.createElement();
+        this.createState();
+    }
+```
+- Subwidgets are constructed in `createElement()` and stored under `this.widgets.name`, same as any other subwidget access rule above. A subwidget can be constructed either the usual way (an id string, hooking an element already in this widget's own HTML) or by handing it a live DOM element reference directly - both are valid, pick whichever is more convenient for how the child widget renders itself:
+```js
+this.widgets.userList = new UserListWidget(table_element); // element reference
+this.widgets.form = new FormWidget(randomID(), "Add User"); // id string
+```
+- **Exposing a child's signal as your own: expose it directly**, by assigning the same `Signal` object rather than relaying it through a `connect()` + re-`emit()` pair:
+```js
+this.signals.create = this.widgets.form.signals.create;
+this.signals.update = this.widgets.form.signals.update;
+```
+  This is the confirmed convention (not the relay-through-connect alternative) - it's cheaper and callers connecting to `adminSection.signals.create` are connecting to the exact same `Signal` instance the child widget emits on, no indirection.
+- Wiring between two subwidgets of the same composite (as opposed to a signal being re-exposed outward) still uses the normal explicit `connect()` syntax, just written inside the composite's own `createElement()` instead of in the page-level HTML:
+```js
+this.widgets.userList.signals.edit_datum.connect((datum) => {
+    this.widgets.form.current_datum_slot(datum);
+    this.widgets.form.update_slot();
+});
+```
+- A composite can forward an incoming slot call straight to a child's slot of the same name, when there's nothing of its own to do first:
+```js
+datamodel_slot(schema) { // forwards to formWidget, no transformation needed
+    this.widgets.form.datamodel_slot(schema);
+}
+```
+
 ## Forms and fields
 
 When creating forms for user input data, we have several options:
