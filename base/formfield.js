@@ -214,22 +214,31 @@ class FreeStringFormField extends BaseFormField { /*//DOC
 class IntegerFormField extends BaseFormField { /*//DOC
     A form field for integer input.
 
-    Validates that the input is a valid integer.
+    Validates that the input is a valid integer, optionally bounded by min/max.
     */
-    constructor(label, help = undefined) {
+    constructor(label, help = undefined, min = undefined, max = undefined) { /*//DOC
+        min/max (optional): inclusive bounds - set as the input's HTML5 min/max attributes
+        (browser-native spinner/typing feedback) AND enforced in check() (the actual gatekeeper
+        before a value is emitted - HTML5 constraints alone are not relied on, e.g. some
+        browsers still accept an out-of-range typed value on blur without a form submit).
+        */
         super(label, help);
+        this.min = min;
+        this.max = max;
     }
 
     createElement(unique_name) { /*//DOC
-        Creates an HTML number input field.
+        Creates an HTML number input field, with min/max attributes if set.
         */
         let uniquename = unique_name + "-" + randomID();
         this.element = document.createElement("div");
         this.element.classList.add("mb-3");
 
+        const minAttr = this.min !== undefined ? ` min="${this.min}"` : "";
+        const maxAttr = this.max !== undefined ? ` max="${this.max}"` : "";
         var line = `
         <label for="${uniquename}" class="form-label">${this.label}</label>
-        <input type="number" class="form-control" id="${uniquename}">
+        <input type="number" class="form-control" id="${uniquename}"${minAttr}${maxAttr}>
         <div class="valid-feedback">ok!</div>
         `;
 
@@ -251,7 +260,7 @@ class IntegerFormField extends BaseFormField { /*//DOC
     }
 
     check(value) { /*//DOC
-        Validates that the input is a valid integer.
+        Validates that the input is a valid integer, within min/max if set.
 
         Returns:
         {value: number, error: null} if valid
@@ -267,6 +276,12 @@ class IntegerFormField extends BaseFormField { /*//DOC
         }
         if (!Number.isInteger(num)) {
             return { value: null, error: "Please enter an integer value" };
+        }
+        if (this.min !== undefined && num < this.min) {
+            return { value: null, error: `Must be at least ${this.min}` };
+        }
+        if (this.max !== undefined && num > this.max) {
+            return { value: null, error: `Must be at most ${this.max}` };
         }
         return { value: num, error: null };
     }
