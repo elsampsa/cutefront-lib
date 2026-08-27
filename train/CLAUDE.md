@@ -299,6 +299,49 @@ On browser back/forward: StateWidget calls each widget's `setState()` with the r
 
 See `../base/statewidget.html` for a working example.
 
+### localStorage-backed state (an alternative to URL state)
+
+Not every piece of widget state belongs in the URL. A user preference like a light/dark theme
+toggle should persist across sessions and devices-in-the-same-browser, but it has no reason to be
+shareable/bookmarkable or to create browser-history entries the way page navigation state does -
+so it doesn't belong in the Widget Serialization API above. For state like this, read/write
+`localStorage` directly instead:
+
+```js
+const STORAGE_KEY = 'my-app-theme';
+
+createState() {
+    this._theme = localStorage.getItem(STORAGE_KEY) === 'night' ? 'night' : 'day'; // default
+    this._applyTheme(this._theme); // apply immediately, don't wait for user interaction
+}
+
+_setTheme(theme) {
+    this._theme = theme;
+    localStorage.setItem(STORAGE_KEY, theme);
+    this._applyTheme(theme);
+    this.signals.themeChanged.emit(theme); // still emit a signal, even with nothing connected yet
+}
+```
+
+A real-world reference split across two widgets (from a full CuteFront app, not this training
+library) shows the two roles this can take:
+- An invisible, no-DOM widget (`ThemeWidget`) owns the `localStorage` key and applies the resulting
+  state globally (e.g. setting `data-bs-theme` on `<html>` for Bootstrap 5.3+'s dark mode) -
+  instantiated early, before any other widget, so there's no flash of the wrong theme.
+- A separate, purely visual widget (`AppearanceWidget`) renders the actual toggle/radio UI and only
+  emits a signal when the user changes it - it has no idea `localStorage` exists.
+
+Splitting the two makes sense when the applied state needs to exist before other widgets render
+(avoiding a flash), or when more than one UI entry point should drive the same stored value. If
+neither applies - a single toggle behind one settings panel, applied immediately on click, no
+flash-of-wrong-state to avoid - it's simpler to merge both roles into one widget instead: read/
+apply the stored value in `createState()`, and apply-and-save together in the click handler, same
+as the snippet above.
+
+Either way, the same "no edit-switch, always applies" character used elsewhere in these docs
+applies here too: there's no commit-on-close step, since there's nothing to protect the user from
+overwriting - each change is just saved immediately.
+
 ## Timing-Independent Slots (Slot Timing Independence)
 
 When implementing slots that depend on other asynchronous operations, use a timing-independent pattern to avoid race conditions.
