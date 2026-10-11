@@ -117,11 +117,13 @@ There are also subobjects/widgets not supposed to be accessed by the API user.
 
 Take for example the ListWidget that owns ListItemWidget(s).  ListWidget creates child widgets on-the-fly and caches them into a list.  It can then query the ListItemWidget(s) HTML DOM element from their ``getElement()`` and attach it to it's own DOM tree / remove it from it's own DOM tree when necessary.  For more details, take a look into `../base/listwidget.js`.
 
-For an example on how to compose a page of complex nested widgets, please take a look into `./landing.html` and `./layout.html`.  
+For an example on how to compose a page of complex nested widgets, please take a look into `./landing.html` and `./layout.html` in this same train folder
+(i.e. `lib/train/landing.html` and `lib/train/layout.html` from the project root).
+These are training examples: don't confuse them with the project's own entry page `app/landing.html`, which belongs to the user's app.
 
 The complex hierarchy of a widget can be visualized with the `cute-get-api-tree` tool (which you might want to use).
 
-For example, in `./landing.html` we have this line:
+For example, in `./landing.html` (of this train folder) we have this line:
 ```html
 window.genDocs = ["container", "itemDataSourceWidget","userDataSourceWidget","authUserFloaterWidget"]
 ```
@@ -243,7 +245,7 @@ to the actual (http(s)) datasource.
 
 None of this - `DataModel`, `AuthModel`, pagination, adaptive forms - is covered in this training
 material. For a real, working example of all of it wired together, take a look at `./landing.html`
-and `./layout.html` in this same folder (as mentioned above) - though note that the widgets they use
+and `./layout.html` in this same train folder (as mentioned above - not the app's own `app/landing.html`) - though note that the widgets they use
 (`ItemDataSourceWidget`, `AuthUserFloaterWidget`, etc.) are app-specific widgets ripped from a real
 project, not part of this training library, so don't expect matching `.js`/`.html` training pairs
 for them here.
