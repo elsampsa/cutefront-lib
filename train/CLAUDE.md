@@ -4,8 +4,6 @@ Hi Claude!
 
 Let's do some development with CuteFront.  It is a pure-javascript and HTML framework.  It is similar to the Qt desktop framework.  
 
-This file is either a preamble of a small dump of the CuteFront library I have given you or alternatively you get this file independently and then you can decide which parts of the library you want to study in more detail.
-
 Let's summarize how CuteFront works.
 
 Widgets are written in javascript.  CSS and HTML from bootstrap version 5 are used.
@@ -22,7 +20,7 @@ Code for each widget resides in a separate .js file.  We want to use some strict
 - An instance of "SomeWidget" should have the name "someWidget".
 
 Each widget has a corresponding html file with the same name (example: "some.html") for basic testing.  These testing files
-should be very basic html without any "eye candy" or fancy css styling.  The idea is that the user can see easily how the widgets are used
+should be very basic html without any "eye candy" or fancy css styling.  They just demonstrate how the widgets are used
 from html.
 
 The idea is, that widgets have their own, well-separated and documented API and they only interact with the outside world using signals and slots.
@@ -31,7 +29,7 @@ When user interacts with a widget (say, with a click or typing something), the w
 
 When a widget receives a signal to a slot, this typically results in its internal state (and its HTML) being changed.
 
-The state of the widget is cached in widget's HTML elements (say, the state of a radio button).  This is the preferred
+The state of the widget is cached into the widget's HTML elements (say, the state of a radio button).  This is the preferred
 way to maintain the state.  If needed, some part of the state can also be cached to internal member variables (say, `this.some_boolean_flag`, etc.).
 
 When creating single-page applications with complex interactions between widgets, the signals and slots between widgets instances are explicitly connected in the main html file.
@@ -51,7 +49,7 @@ You MUST read at least these two files:
 Please READ THEM NOW.
 
 Next, let's take a look at some widgets in the base library.  Remember that CuteFront is still a work in progress and some of the files
-might not have all the correct docstrings, etc. but we want to get there.
+might not have all the correct docstrings, etc. but we will get there.
 
 Said that, these are widget classes in the base library you should take a look at:
 
@@ -64,14 +62,31 @@ Said that, these are widget classes in the base library you should take a look a
 ```
 (and the corresponding html files).
 
+## Tooling
+
+- cute-browser is a tool for LLMs to test autonomously a webpage.
+- cute-get-api-tree dumps API hierarchies into a yaml file
+
+You can get them by cloning https://github.com/elsampsa/cutefront
+go into directory `cutetools` and do pip install in that directory
+
+Keep this in mind and if `cute-browser` command isn't installed, suggest the user that it could be installed.
+
 ## Testing Widgets
 
 Each test html file can be run in chrome with the `--allow-file-access-from-files` parameter to visualize an individual widget.
 
-More complex single-page applications (SPAs) can also be opened in the same way: the page has internal logic so that it goes into debug state
-when opened as a file.  In the debug state it typically uses mock datasources, adds testing panels, etc.
-          
-Claude: YOU can use this too: there is a custom tool named "cute-browser" where you get "hands and eyes" on the web-page and browsing!  Please try this for more info:
+Production single-page applications (SPAs) with lots of cutefront widgets can also be run in the same way:
+the html page has internal logic so that it goes into debug state when opened as a file.  
+In the debug state it typically defaults into using mock datasources, adding testing panels, etc.
+
+We can control the testing also with URL-encoded parameters to the main SPA html file, say:
+```
+network-testing=false
+test-panel=false
+```
+
+We have a custom tool named "cute-browser" where you can get "hands and eyes" on the web-page and browsing. :)  Please try this for more info:
 ```bash
 cute-browser --help
 ```
@@ -79,13 +94,7 @@ For local testing, you should use the `--local` flag that allows local js file a
 To emphasize: `cute-browser` is meant for LLM agents like you (not for humans) so that you can quick-test the page.
 Please start always with `cute-browser --help` to get an idea how the tool works.
 
-You can remove additional testing panels by defining these URL-encoded parameters when opening the SPA html file:
-```
-network-testing=false
-test-panel=false
-```
-
-I, for my part, can use the "device toolbar" feature in the chrome's developer panel.  However, in order for us to get consistent results, it is important that the html files have this one defined:
+The user can use the "device toolbar" feature in the chrome's developer panel.  However, in order for us to get consistent results, it is important that the html files have this one defined:
 ```html
 <meta name="viewport" content="width=device-width, initial-scale=1">
 ```
@@ -121,6 +130,7 @@ Now we can do this:
 cute-get-api-tree landing.html
 ```
 It takes the widget instances named "container", "itemDataSourceWidget", etc., dumps their API (signals, slots, subwidgets, etc.) into a hierarchical yaml file into the stdout.
+Use it if you feel like it.
 
 ### Composing a widget out of other widgets
 
@@ -188,14 +198,25 @@ JSON body, and a `POST` with `multipart/form-data`, wired purely through signals
 
 Please READ THEM NOW.  The header comment in `backendexample.js` also documents the helper methods
 and signals already available on the base `DataSource`, `HTTPDataSource` and `DataSourceWidget`
-classes, so you don't need to go digging through those base files just to find out what's already
-there:
-
+classes:
 ```
 ../base/datasource.js : `DataSource` defines CRUD operations, and its `MockDataSource` subclass lets you fake a backend for testing
 ../base/httpdatasource.js : `HTTPDataSource` : HTTP implementation of the datasource
 ../base/datasourcewidget.js : `DataSourceWidget` coordinates UI interaction and signals and slots of a datasource
 ```
+
+Backend operations are asynchronous within the signal/slot framework:
+
+- A button is clicked on a frontend widget (say "Request Data")
+- Frontend widget sends a signal (signals.req_data)
+- Signal has been connected into a DataSourceWidget (req_data_slot)
+
+DataSourceWidget delegates the backend operation to the DataSource and it is now pending.  The reply will come asynchronously at some point.
+
+- DataSourceWidget, once the backend operation has finished, sends a signal (signals.new_data)
+- Signal has been connected to Frontend widgets slot (new_data_slot)
+- Frontend state is refreshed
+
 
 ### More advanced: DataModel, adaptive forms, auth & pagination
 

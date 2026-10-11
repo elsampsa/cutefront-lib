@@ -91,6 +91,12 @@ class HateLike extends Widget { /*//DOC
         }
         // LLM: if the parameter for the slot would need to have some complex structure, declare it in the DOC section.
     }
+    /* LLM: If you have a large widget library and you simply need to see the widget's API, reading until this point is enough:
+       you only need to know the signals from createSignals() method and the DOC strings of each *_slot() method in order to gain complete knowledge of the API.
+       For extracting DOC strings of all the slot functions, you might want to use some smart grep command.
+       By reading only the API of widgets, we can save context.
+       But said, that lets go on reading this widget as were learning the framework here :)
+    */
     createState() { /* LLM: Initializes state variables created by createElement (see below).
         Creates additional state variables if necessary.
         */
