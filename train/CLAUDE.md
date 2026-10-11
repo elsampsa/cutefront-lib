@@ -433,6 +433,48 @@ This pattern works **regardless of call order**:
 
 See `../base/formwidget.js` for a real implementation.
 
+## Runtime Schema Checks for Slots
+
+Signals carry plain js objects, and nothing checks at "compile time" that the data emitted by a signal matches what
+the connected slot expects.  Instead, slots can check the incoming data at runtime against a schema.
+
+Define the schema as a static member named `<slot name>_schema` just above the slot, and call `this.checkSchema()`
+as the first thing in the slot:
+
+```js
+static sample_slot_schema = {
+    uuid: "string",
+    timestamp: "number",
+    polished: "boolean|null",          // union of types
+    note: "string?",                   // optional: may be missing or null
+    profile: {                         // nested object
+        width: "number",
+        data: [["number"]],            // array of arrays of numbers
+    },
+    tags: ["string"],                  // array of strings
+    file: (v) => v instanceof File,    // custom check function returning true/false
+};
+sample_slot(datum) { /*//DOC
+    Receives a new sample
+    */
+    this.checkSchema(datum, this.constructor.sample_slot_schema);
+    ...
+}
+```
+
+- The checks are effective only after `Widget.enableSchemaChecks()` has been called: call it in each test html file
+  and in the test-mode of an SPA.  When disabled, `checkSchema()` costs practically nothing.
+- Use `this.constructor.<slot name>_schema` (not `ClassName.<slot name>_schema`), so that subclasses can override the schema.
+- A failed check reports the class, the slot and the exact path of the problem to the console, say
+  `SampleWidget.sample_slot: datum.profile.data[2][0]: expected number, got string`.
+  `Widget.enableSchemaChecks(true, {throwOnError: true})` throws an exception instead.
+- `checkSchema()` returns `false` on a failed check, so a slot can bail out with `if (!this.checkSchema(...)) return;` if needed.
+- Keys of the data that are not in the schema are ignored.  Only the first 10 items of each array are checked (set with `maxItems`).
+- The schemas show up in `getAPITree()`, i.e. in the output of `cute-get-api-tree`.
+- See `validateSchema()` in `../base/widget.js` for the full schema syntax and `../base/schemacheck.html` for tests.
+
+Schema checks are optional: add them especially to slots that receive nested data, say, from datasource widgets.
+
 ## Conclusions
 
 I hope you got it!

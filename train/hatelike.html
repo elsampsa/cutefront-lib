@@ -63,8 +63,9 @@ marked:
 
 <script type="module">
 
-import { DummyWidget } from '../base/widget.js';
+import { Widget, DummyWidget } from '../base/widget.js';
 import { HateLike } from './hatelike.js';
+Widget.enableSchemaChecks(); // test page: make the runtime schema checks of the slots effective
 var dummy_widget = new DummyWidget();
 var test1 = new HateLike("test1");
 var test2 = new HateLike("test2");

@@ -165,11 +165,111 @@ function getAllMethodsInPrototypeChain(obj) {
 }
 
 
+/* Runtime schema checks for data arriving into slots.
+
+A schema is a plain js object literal that has the same shape as the data:
+
+    {
+        uuid: "string",
+        timestamp: "number",
+        polished: "boolean|null",          // union of types
+        note: "string?",                   // optional: may be missing or null
+        profile: {                         // nested object
+            width: "number",
+            data: [["number"]],            // array of arrays of numbers
+        },
+        tags: ["string"],                  // array of strings
+        file: (v) => v instanceof File,    // custom check function returning true/false
+        whatever: "any",                   // anything goes
+    }
+
+Type names: string, number, boolean, object, array, function, null, undefined, any.
+Keys of the data that are not in the schema are ignored.
+Only the first maxItems items of each array are checked, so that the cost stays bounded for large arrays.
+*/
+const SCHEMA_TYPES = ["string", "number", "boolean", "object", "array", "function", "null", "undefined", "any"];
+
+function schemaTypeOf(value) {
+    if (value === null) return "null";
+    if (Array.isArray(value)) return "array";
+    return typeof value;
+}
+
+function validateSchema(value, schema, {path = "datum", maxItems = 10} = {}) { /*//DOC
+    Checks value against schema (see above).  Returns a list of error strings: empty list means OK.
+    */
+    const errors = [];
+    const check = (value, schema, path) => {
+        if (typeof schema === "function") { // custom check
+            if (!schema(value)) errors.push(`${path}: failed custom check`);
+        }
+        else if (typeof schema === "string") { // "number", "string|null", "string?", "any"
+            const allowed = schema.replace(/\?$/, "|null|undefined").split("|");
+            const unknown = allowed.filter(t => !SCHEMA_TYPES.includes(t));
+            if (unknown.length > 0) {
+                errors.push(`${path}: unknown type "${unknown.join("|")}" in schema`);
+            }
+            else if (!allowed.includes("any") && !allowed.includes(schemaTypeOf(value))) {
+                errors.push(`${path}: expected ${schema}, got ${schemaTypeOf(value)}`);
+            }
+        }
+        else if (Array.isArray(schema)) { // [itemSchema]
+            if (!Array.isArray(value)) {
+                errors.push(`${path}: expected array, got ${schemaTypeOf(value)}`);
+            }
+            else {
+                value.slice(0, maxItems).forEach((item, i) => check(item, schema[0], `${path}[${i}]`));
+            }
+        }
+        else if (isPlainObject(schema)) { // {key: schema, ...}
+            if (schemaTypeOf(value) !== "object") {
+                errors.push(`${path}: expected object, got ${schemaTypeOf(value)}`);
+            }
+            else {
+                for (const key of Object.keys(schema)) {
+                    check(value[key], schema[key], `${path}.${key}`);
+                }
+            }
+        }
+        else {
+            errors.push(`${path}: invalid schema ${String(schema)}`);
+        }
+    };
+    check(value, schema, path);
+    return errors;
+}
+
+function describeSchema(schema) { // a json-serializable version of a schema (custom check functions become "custom")
+    if (typeof schema === "function") return "custom";
+    if (Array.isArray(schema)) return [describeSchema(schema[0])];
+    if (isPlainObject(schema)) {
+        return Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, describeSchema(value)]));
+    }
+    return schema;
+}
+
+
 class Widget { /* The Base class implementation for CuteFront Widgets
 
     Subclass should always call this superclasses ctor.
     Parameter id is the id of the html element to which this widget attaches to.
     */
+    static schema_checks = false; // see enableSchemaChecks()
+    static schema_throw = false;
+    static schema_max_items = 10;
+
+    static enableSchemaChecks(enable = true, {throwOnError = false, maxItems = 10} = {}) { /*//DOC
+        Enable/disable runtime schema checks for all widgets, i.e. make all this.checkSchema() calls effective.
+        Typically called in test html files and in the test-mode of an SPA.
+
+        :param throwOnError: throw an exception on a failed check (default: just report the error to the console)
+        :param maxItems: check only this many first items of each array
+        */
+        Widget.schema_checks = enable;
+        Widget.schema_throw = throwOnError;
+        Widget.schema_max_items = maxItems;
+    }
+
     constructor(id) {
         this.id = id
         this.loglevel = 0; // 0 = normal.  smaller: useless, bigger: usefull
@@ -179,7 +279,6 @@ class Widget { /* The Base class implementation for CuteFront Widgets
         this.components = new Object(); // subwidgets/other objects of this widget that the API user should not access directly
         this.input_fields = new Object(); // FormField instances for widgets that use forms
         this.createSignals();
-        // this._enhanceSlotMethods(); // add class info to the _slot methods // TODO: does this work or not?
     }
     createSignals() {
         this.err("you must subclass createSignals");
@@ -473,14 +572,47 @@ class Widget { /* The Base class implementation for CuteFront Widgets
     }
     */
 
-    _enhanceSlotMethods() {
-        // add property 'method_addr' to all _slot methods
-        const methodNames = Object.getOwnPropertyNames(Object.getPrototypeOf(this));
-        methodNames.forEach(methodName => {
-        if (methodName.endsWith('_slot') && typeof this[methodName] === 'function') {
-            this[methodName]["method_addr"] = `${this.constructor.name}.${methodName}`;
+    checkSchema(value, schema) { /*//DOC
+        Checks data arriving into a slot against a schema.  Effective only if Widget.enableSchemaChecks() has been called.
+        Returns true if the data is OK (or if schema checks are disabled).
+
+        Define the schema as a static member just above the slot and call this as the first thing in the slot:
+
+            static sample_slot_schema = { uuid: "string", timestamp: "number" };
+            sample_slot(datum) {
+                this.checkSchema(datum, this.constructor.sample_slot_schema);
+                ...
+            }
+        */
+        if (!Widget.schema_checks) return true;
+        let errors;
+        if (schema === undefined) { // say, a typo in the schema name
+            errors = ["schema is undefined"];
         }
-        });
+        else {
+            errors = validateSchema(value, schema, {maxItems: Widget.schema_max_items});
+        }
+        if (errors.length == 0) return true;
+        const msg = `${this._schemaOwner(schema)}: schema check failed:\n  ${errors.join("\n  ")}`;
+        if (Widget.schema_throw) {
+            throw new Error(msg);
+        }
+        console.error(msg, "\ndata:", value);
+        console.trace();
+        return false;
+    }
+
+    _schemaOwner(schema) { // "Class.some_slot" if schema is a static "some_slot_schema" member, otherwise just "Class"
+        let cls = this.constructor;
+        while (schema !== undefined && cls && cls !== Function.prototype) {
+            for (const key of Object.getOwnPropertyNames(cls)) {
+                if (key.endsWith("_slot_schema") && cls[key] === schema) {
+                    return `${this.constructor.name}.${key.slice(0, -"_schema".length)}`;
+                }
+            }
+            cls = Object.getPrototypeOf(cls);
+        }
+        return this.constructor.name;
     }
 
     /* the API doc generator */
@@ -524,6 +656,13 @@ class Widget { /* The Base class implementation for CuteFront Widgets
                 if (docs) {
                     api.slots[key] = Object();
                     api.slots[key]["about"] = docs
+                }
+                const schema = this.constructor[`${key}_schema`]; // static schema for runtime checks, if any
+                if (schema !== undefined) {
+                    if (api.slots[key] === null) {
+                        api.slots[key] = Object();
+                    }
+                    api.slots[key]["schema"] = describeSchema(schema);
                 }
 
             } else if (typeof this[key] === 'function' && (key.startsWith("get__") || key.startsWith("set__"))) {
@@ -596,9 +735,9 @@ class Signal {
         this.callbacks.push(method);
     }
     disconnect(method) { //  deregister a callback function
-        let i = this.callbacks.find(func => func == method);
-        if (i>0) {
-            this.callbacks.pop(i);
+        let i = this.callbacks.indexOf(method);
+        if (i >= 0) {
+            this.callbacks.splice(i, 1);
         }
         else {
             console.log("Signal: could not find method from callback list");
@@ -701,4 +840,4 @@ class DumpWidget extends Widget { /*//DOC
 }
 
 export { Widget, Signal, DummyWidget, DumpWidget, ElementWidget,
-    assertKeys, getPageParameters, equalSets, uuidv4, boxify, csv2obj, obj2csv, randomID, isDOMElement };
+    assertKeys, validateSchema, getPageParameters, equalSets, uuidv4, boxify, csv2obj, obj2csv, randomID, isDOMElement };

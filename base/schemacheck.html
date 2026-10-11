@@ -1,0 +1,187 @@
+<!--
+Beginning of file "schemacheck.html"
+Tests the runtime schema checks of slots (Widget.checkSchema(), Widget.enableSchemaChecks() and validateSchema())
+and Signal.disconnect() in file "widget.js"
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schema Check Test</title>
+<link href="../bootstrap/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<button id="valid-button">valid nested data</button>
+<button id="invalid-button">invalid nested data</button>
+<button id="disabled-button">checks disabled</button>
+<button id="subclass-button">subclass overrides schema</button>
+<button id="typo-button">typo in schema name</button>
+<button id="throw-button">throw on error</button>
+<button id="large-button">large array</button>
+<button id="apitree-button">schema in API tree</button>
+<button id="disconnect-button">signal disconnect</button>
+<button id="test-all-button">test all</button>
+
+<pre id="results"></pre>
+
+</body>
+<script src="../bootstrap/js/bootstrap.bundle.min.js"></script>
+
+<script type="module">
+
+import { Widget, Signal, validateSchema } from './widget.js';
+
+class SampleWidget extends Widget { /*//DOC
+    A minimal widget with a schema-checked slot, just for testing.
+    */
+    constructor(id) {
+        super(id);
+    }
+    createSignals() {}
+
+    static sample_slot_schema = {
+        uuid: "string",
+        timestamp: "number",
+        polished: "boolean|null",
+        note: "string?",
+        profile: { width: "number", height: "number", data: [["number"]] },
+        tags: ["string"],
+    };
+    sample_slot(datum) { /*//DOC
+        Receives a sample
+        */
+        return this.checkSchema(datum, this.constructor.sample_slot_schema);
+    }
+
+    typo_slot(datum) { // uses a schema name that doesn't exist
+        return this.checkSchema(datum, this.constructor.typo_slot_shcema);
+    }
+}
+
+class SubSampleWidget extends SampleWidget {
+    static sample_slot_schema = { uuid: "number" }; // overrides the parent's schema
+}
+
+const VALID = {
+    uuid: "abc", timestamp: 123, polished: null,
+    profile: { width: 2, height: 2, data: [[1, 2], [3, 4]] },
+    tags: ["a", "b"], extra: "keys not in the schema are ignored",
+};
+const INVALID = {
+    uuid: 1, timestamp: "123", polished: 0, note: 5,
+    profile: { width: 2, height: 2, data: [[1, "x"], 7] },
+    tags: "a",
+};
+
+const sampleWidget = new SampleWidget(null);
+const subSampleWidget = new SubSampleWidget(null);
+const results = document.getElementById("results");
+
+function report(name, ok, details = "") {
+    results.textContent += `${ok ? "PASS" : "FAIL"}: ${name}${details ? "\n    " + details : ""}\n`;
+    return ok;
+}
+
+const tests = {
+    "valid nested data": () => {
+        Widget.enableSchemaChecks();
+        return report("valid nested data", sampleWidget.sample_slot(VALID) === true);
+    },
+    "invalid nested data": () => {
+        Widget.enableSchemaChecks();
+        const errors = validateSchema(INVALID, SampleWidget.sample_slot_schema);
+        const expected = [
+            "datum.uuid: expected string, got number",
+            "datum.timestamp: expected number, got string",
+            "datum.polished: expected boolean|null, got number",
+            "datum.note: expected string?, got number",
+            "datum.profile.data[0][1]: expected number, got string",
+            "datum.profile.data[1]: expected array, got number",
+            "datum.tags: expected array, got string",
+        ];
+        const ok = sampleWidget.sample_slot(INVALID) === false
+            && JSON.stringify(errors) === JSON.stringify(expected);
+        return report("invalid nested data (see also the console)", ok, errors.join("\n    "));
+    },
+    "checks disabled": () => {
+        Widget.enableSchemaChecks(false);
+        const ok = sampleWidget.sample_slot(INVALID) === true;
+        Widget.enableSchemaChecks();
+        return report("checks disabled", ok);
+    },
+    "subclass overrides schema": () => {
+        Widget.enableSchemaChecks();
+        const ok = subSampleWidget.sample_slot({ uuid: 1 }) === true
+            && subSampleWidget.sample_slot({ uuid: "abc" }) === false;
+        return report("subclass overrides schema", ok);
+    },
+    "typo in schema name": () => {
+        Widget.enableSchemaChecks();
+        return report("typo in schema name (see also the console)", sampleWidget.typo_slot(VALID) === false);
+    },
+    "throw on error": () => {
+        Widget.enableSchemaChecks(true, { throwOnError: true });
+        let message = null;
+        try {
+            sampleWidget.sample_slot(INVALID);
+        } catch (e) {
+            message = e.message;
+        }
+        Widget.enableSchemaChecks();
+        const ok = message !== null && message.startsWith("SampleWidget.sample_slot: schema check failed");
+        return report("throw on error", ok, String(message).split("\n")[0]);
+    },
+    "large array": () => {
+        const big = Array.from({ length: 1000 }, () => Array(1000).fill(1));
+        big[999][999] = "x";
+        const t0 = performance.now();
+        const sampled = validateSchema(big, [["number"]]); // checks only the first 10 x 10 items
+        const t1 = performance.now();
+        const full = validateSchema(big, [["number"]], { maxItems: Infinity });
+        const ok = sampled.length == 0 && full.length == 1;
+        return report("large array", ok, `sampled check ${(t1 - t0).toFixed(2)} ms, full check finds: ${full[0]}`);
+    },
+    "schema in API tree": () => {
+        const slots = sampleWidget.getAPITree().slots;
+        const ok = slots.sample_slot.about === "Receives a sample"
+            && slots.sample_slot.schema.profile.data[0][0] === "number";
+        return report("schema in API tree", ok, JSON.stringify(slots.sample_slot.schema));
+    },
+    "signal disconnect": () => {
+        const signal = new Signal("test signal");
+        const calls = [];
+        const f1 = () => calls.push(1), f2 = () => calls.push(2), f3 = () => calls.push(3);
+        signal.connect(f1);
+        signal.connect(f2);
+        signal.connect(f3);
+        signal.disconnect(f1); // the first callback (index 0)
+        signal.disconnect(f2);
+        signal.emit();
+        return report("signal disconnect", JSON.stringify(calls) === "[3]", `called: ${JSON.stringify(calls)}`);
+    },
+};
+
+const buttons = {
+    "valid-button": "valid nested data",
+    "invalid-button": "invalid nested data",
+    "disabled-button": "checks disabled",
+    "subclass-button": "subclass overrides schema",
+    "typo-button": "typo in schema name",
+    "throw-button": "throw on error",
+    "large-button": "large array",
+    "apitree-button": "schema in API tree",
+    "disconnect-button": "signal disconnect",
+};
+for (const [id, name] of Object.entries(buttons)) {
+    document.getElementById(id).onclick = () => tests[name]();
+}
+document.getElementById("test-all-button").onclick = () => {
+    results.textContent = "";
+    const ok = Object.values(tests).map(test => test()).every(x => x);
+    results.textContent += ok ? "\nALL TESTS PASSED\n" : "\nSOME TESTS FAILED\n";
+};
+
+</script>
+</html>

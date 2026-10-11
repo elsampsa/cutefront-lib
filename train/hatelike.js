@@ -76,12 +76,20 @@ class HateLike extends Widget { /*//DOC
     Please use always the "snake-case" syntax for slots and always include "_slot" in the name of the function,
     for example in this case, instead of "inputTextSlot", the name is "input_text_slot".
     Each slot should have a comment that describes what kind of datatype and/or what kind a nested json object scheme it expects.
-    You can even implement type and json scheme testing.
     */
+    /* LLM: Runtime schema check for the data arriving into the slot.  Define the schema as a static member named "<slot name>_schema"
+    just above the slot and call this.checkSchema() as the first thing in the slot.  The check is effective only after
+    Widget.enableSchemaChecks() has been called (in test html files and in the test-mode of an SPA), otherwise it costs nothing.
+    Here the schema is just a plain type, but it can also be a nested object, for example:
+    static datum_slot_schema = { uuid: "string", timestamp: "number", tags: ["string"], profile: { width: "number" } };
+    See validateSchema() in ../base/widget.js for the full schema syntax.
+    */
+    static input_text_slot_schema = "string";
     input_text_slot(txt) { /*//DOC
         Receives a text message from another widget
         :param txt: a string
         */
+        this.checkSchema(txt, this.constructor.input_text_slot_schema);
         // this.txt = structuredClone(txt) // LLM: if we would cache the data coming with the signal, we should make an immutable copy of it
         if (txt.includes("like")) {
             this.flike()
