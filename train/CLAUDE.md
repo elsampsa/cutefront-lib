@@ -220,6 +220,28 @@ DataSourceWidget delegates the backend operation to the DataSource and it is now
 - Frontend state is refreshed
 
 
+### Pushed data: WebSocketDataSource
+
+For data the backend pushes (live state, notifications), use `../base/websocketdatasource.js` instead of polling:
+
+```
+WebSocketDataSource        one websocket connection, channels multiplexed in it, reconnects & resubscribes
+MockWebSocketDataSource    the same api over an in-memory server (hooks onSubscribe / onRequest .., push methods
+                           broadcast / sendToSub, dropConnection()) - the same protocol code runs, so mocks test it too
+WebSocketDataSourceWidget  signals & slots: connected / disconnected / message / reply, subscribe_slot, request_slot ..
+```
+
+```js
+const ws = new WebSocketDataSource().setUrl("../ws/");
+const unsubscribe = ws.subscribe("block/12", (data, channel) => { ... }, { snapshots: true }); // params: for the server
+const reply = await ws.request("block/12", { q: 1 }); // rejects with {message, status, body} like HTTPDataSource
+```
+
+Each `subscribe()` is a subscription of its own, so the server can push to one subscriber only (say, one widget among
+several on the page).  Widgets created on the fly get the datasource handed to them (a setter, like for HTTP) and
+subscribe themselves; the widget is for page-level wiring.  The wire protocol is documented in the file's header.
+See `../base/websocketdatasource.html` for tests ("Run all tests").
+
 ### More advanced: DataModel, adaptive forms, auth & pagination
 
 Real backends usually need more than `backendexample.js` shows:

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebSocketDataSource Test</title>
+<style>
+    body { font-family: monospace; margin: 20px; }
+    button { margin: 3px; }
+    #log { background: #f5f5f5; padding: 10px; white-space: pre; max-height: 400px; overflow-y: auto; }
+</style>
+</head>
+<body>
+<h3>WebSocketDataSource (mock server)</h3>
+<p>
+The mock server: channel "clock" pushes the time to each subscription once a second (to that subscription only: a
+subscription with params {fast: true} gets it 4 times a second); "news" gets broadcasts; requests to "echo" are
+echoed, to anything else they fail.
+</p>
+<div>
+    <button id="sub-clock">subscribe clock</button>
+    <button id="sub-clock-fast">subscribe clock {fast: true}</button>
+    <button id="unsub-clock">unsubscribe clocks</button>
+    <button id="sub-news">subscribe news (widget slot)</button>
+    <button id="broadcast">server: broadcast news</button>
+</div>
+<div>
+    <button id="req-echo">request echo</button>
+    <button id="req-fail">request (fails)</button>
+    <button id="drop">server: drop connection</button>
+    <button id="close">close</button>
+    <button id="open">open</button>
+</div>
+<div>
+    <button id="run-all">Run all tests</button>
+    <button id="clear">clear log</button>
+</div>
+<div id="log"></div>
+</body>
+<script type="module">
+import { Widget, DummyWidget } from './widget.js';
+import { MockWebSocketDataSource, WebSocketDataSourceWidget } from './websocketdatasource.js';
+Widget.enableSchemaChecks();
+
+const logElement = document.getElementById("log");
+function log(...args) {
+    logElement.textContent += args.map((a) => typeof a === "string" ? a : JSON.stringify(a)).join(" ") + "\n";
+    logElement.scrollTop = logElement.scrollHeight;
+}
+
+// ---- the mock server ----
+const ws = new MockWebSocketDataSource().setTimeout(2000);
+const clocks = new Map(); // sub -> interval
+ws.onSubscribe(({ sub, channel, params }) => {
+    log("server: subscribe", { sub, channel, params });
+    if (channel === "clock") {
+        clocks.set(sub, setInterval(() => ws.sendToSub(sub, new Date().toLocaleTimeString()), params.fast ? 250 : 1000));
+    }
+});
+ws.onUnsubscribe(({ sub, channel }) => {
+    log("server: unsubscribe", { sub, channel });
+    clearInterval(clocks.get(sub));
+    clocks.delete(sub);
+});
+ws.onRequest((channel, data) => {
+    if (channel !== "echo") throw new Error(`no such channel: ${channel}`);
+    return { echo: data };
+});
+
+// ---- page-level wiring with the widget ----
+const dummy = new DummyWidget();
+const wsWidget = new WebSocketDataSourceWidget("ws-widget", ws);
+wsWidget.signals.connected.connect(() => log("connected"));
+wsWidget.signals.disconnected.connect(() => log("disconnected"));
+wsWidget.signals.message.connect((msg) => log("widget message:", msg));
+wsWidget.signals.reply.connect((msg) => log("widget reply:", msg));
+wsWidget.signals.error.connect((error) => log("widget error:", error));
+wsWidget.signals.message.connect((msg) => dummy.slot(msg));
+
+// ---- direct use, like a widget created on the fly ----
+let unsubs = [];
+document.getElementById("sub-clock").onclick = () => {
+    unsubs.push(ws.subscribe("clock", (data, channel) => log(`clock (sub ${unsubs.length}):`, data)));
+};
+document.getElementById("sub-clock-fast").onclick = () => {
+    unsubs.push(ws.subscribe("clock", (data, channel) => log("fast clock:", data), { fast: true }));
+};
+document.getElementById("unsub-clock").onclick = () => { unsubs.forEach((f) => f()); unsubs = []; };
+document.getElementById("sub-news").onclick = () => wsWidget.subscribe_slot({ channel: "news" });
+document.getElementById("broadcast").onclick = () => ws.broadcast("news", { headline: "CuteFront gets websockets" });
+document.getElementById("req-echo").onclick = () => wsWidget.request_slot({ channel: "echo", data: { hello: 1 } });
+document.getElementById("req-fail").onclick = () => wsWidget.request_slot({ channel: "nowhere", data: null });
+document.getElementById("drop").onclick = () => ws.dropConnection();
+document.getElementById("close").onclick = () => wsWidget.close_slot();
+document.getElementById("open").onclick = () => wsWidget.open_slot();
+document.getElementById("clear").onclick = () => { logElement.textContent = ""; };
+
+// ---- all tests ----
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function check(name, ok) {
+    log(`${ok ? "PASS" : "FAIL"} ${name}`);
+    return ok;
+}
+document.getElementById("run-all").onclick = async () => {
+    log("---- run all tests ----");
+    let ok = true;
+    const got = { a: [], b: [], news: [] };
+    const ua = ws.subscribe("clock", (d) => got.a.push(d));
+    const ub = ws.subscribe("clock", (d) => got.b.push(d), { fast: true });
+    const un = ws.subscribe("news", (d) => got.news.push(d));
+    await sleep(1100);
+    ok &= check("connected", ws.isConnected());
+    ok &= check("each subscription gets its own pushes", got.a.length >= 1 && got.b.length > got.a.length);
+    ws.broadcast("news", "n1");
+    await sleep(50);
+    ok &= check("broadcast reaches the channel", got.news.length === 1 && got.news[0] === "n1");
+    ok &= check("request: reply", JSON.stringify(await ws.request("echo", 5)) === JSON.stringify({ echo: 5 }));
+    let err = null;
+    try { await ws.request("nowhere", 1); } catch (e) { err = e; }
+    ok &= check("request: error reply rejects {message, status, body}", err && /no such channel/.test(err.message) && err.status === null);
+    // a lost connection: reconnects and subscribes again
+    ws.dropConnection();
+    await sleep(50);
+    ok &= check("dropped", !ws.isConnected());
+    await sleep(700);
+    ok &= check("reconnected", ws.isConnected());
+    const before = got.a.length;
+    await sleep(1100);
+    ok &= check("subscriptions survive a reconnect", got.a.length > before);
+    // unsubscribe
+    ua(); ub(); un();
+    await sleep(50);
+    const n = got.a.length + got.b.length;
+    await sleep(1100);
+    ok &= check("unsubscribed: no more pushes", got.a.length + got.b.length === n && clocks.size === 0);
+    // closed: requests fail, no reconnect
+    ws.close();
+    await sleep(700);
+    err = null;
+    try { await ws.request("echo", 1); } catch (e) { err = e; }
+    ok &= check("closed: no reconnect, request rejects", !ws.isConnected() && err && err.message === "Not connected");
+    ws.open();
+    await sleep(50);
+    ok &= check("open() connects again", ws.isConnected());
+    log(ok ? "ALL PASSED" : "SOME FAILED");
+    window.testResult = ok ? "ALL PASSED" : "SOME FAILED";
+};
+</script>
+</html>
